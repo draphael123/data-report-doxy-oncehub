@@ -33,3 +33,4 @@ Thumbs.db
 *.tmp
 read_excel.py
 
+.vercel

@@ -4,8 +4,8 @@ An interactive web dashboard for viewing and analyzing Doxy and OnceHub reports.
 
 ## 🔗 Links
 
+- **Live Dashboard:** https://doxy-oncehub-reports.vercel.app ⚡
 - **GitHub Repository:** https://github.com/draphael123/data-report-doxy-oncehub
-- **Live Demo:** Deploy to Vercel for a live URL (see [DEPLOYMENT.md](DEPLOYMENT.md))
 
 ## Features
 

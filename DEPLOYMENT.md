@@ -48,10 +48,12 @@ vercel --prod
 
 ## 🔗 Your Deployment URLs
 
-Once deployed, you'll get:
-- **Production URL:** `https://data-report-doxy-oncehub.vercel.app`
+✅ **DEPLOYED SUCCESSFULLY!**
+
+- **Production URL:** https://doxy-oncehub-reports.vercel.app ⚡
 - **Preview URLs:** Automatically generated for each push to GitHub
 - **Custom Domain:** Can be added in Vercel dashboard (Settings → Domains)
+- **Vercel Dashboard:** https://vercel.com/daniel-8982s-projects/doxy-oncehub-reports/settings
 
 ## 🔄 Automatic Deployments
 
