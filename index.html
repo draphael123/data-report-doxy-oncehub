@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doxy & OnceHub Reports Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Doxy & OnceHub Reports Dashboard</h1>
+            <p class="subtitle">Interactive Provider Performance Reports</p>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-button active" data-tab="Doxy Visits">Doxy Visits</button>
+            <button class="tab-button" data-tab="Oncehub Report - Visit Type Dat">Visit Type Data</button>
+            <button class="tab-button" data-tab="Oncehub Report - Number of Visi">Number of Visits</button>
+            <button class="tab-button" data-tab="Oncehub - Program Grouped">Program Grouped</button>
+            <button class="tab-button" data-tab="Gusto Hours ">Gusto Hours</button>
+            <button class="tab-button" data-tab="Doxy - Over 20 minutes">Doxy 20+ Minutes</button>
+            <button class="tab-button" data-tab="Oncehub Pivot Program">Oncehub Pivot</button>
+            <button class="tab-button" data-tab="Program Grouped">Program Details</button>
+            <button class="tab-button" data-tab="Program Pivot">Program Pivot</button>
+        </nav>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Search across all columns..." />
+            </div>
+            <div class="info">
+                <span id="rowCount">Loading...</span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div id="tableWrapper">
+                <p class="loading">Loading data...</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>Data last updated: <span id="lastUpdate"></span></p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
