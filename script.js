@@ -14,14 +14,24 @@ async function init() {
     // Show loading message
     const tableWrapper = document.getElementById('tableWrapper');
     if (tableWrapper) {
-        tableWrapper.innerHTML = '<p class="loading">Loading data from Excel file...</p>';
+        tableWrapper.innerHTML = '<p class="loading">Loading data...</p>';
     }
     
     try {
-        // Load data directly from Excel file
-        await loadExcelFile();
+        // Load data from JSON file (simpler and more reliable)
+        console.log('Fetching data.json...');
+        const response = await fetch('data.json');
         
-        console.log('Data loaded, total tabs:', Object.keys(allData).length);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        allData = await response.json();
+        console.log('Data loaded successfully, tabs:', Object.keys(allData));
+        
+        if (!allData || Object.keys(allData).length === 0) {
+            throw new Error('No data found in data.json');
+        }
         
         // Set last update time
         const lastUpdateEl = document.getElementById('lastUpdate');
