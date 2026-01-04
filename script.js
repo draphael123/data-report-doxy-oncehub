@@ -698,16 +698,20 @@ function generateDoxy20MinAnalytics(data, columns) {
     
     // Find week columns that contain visit data
     const weekCols = columns.filter(col => {
-        const colStr = String(col);
-        // Match "WEEK OF 11/30" or "Week of 12/6" pattern
-        return colStr.match(/week of \d+\/\d+/i);
+        const colStr = String(col).trim();
+        // Match "WEEK OF 11/30" or "Week of 12/6" pattern - case insensitive
+        const matches = colStr.match(/week\s+of\s+\d+\/\d+/i);
+        console.log(`Checking column "${colStr}": ${matches ? 'MATCH' : 'no match'}`);
+        return matches;
     });
     
     console.log('Provider column:', providerCol);
-    console.log('Week columns:', weekCols);
+    console.log('Week columns found:', weekCols);
+    console.log('Number of week columns:', weekCols.length);
     
     if (!providerCol || weekCols.length < 2) {
-        console.warn('Not enough data for Doxy 20min analytics');
+        console.warn('Not enough data for Doxy 20min analytics - weekCols:', weekCols.length);
+        console.warn('All columns:', columns);
         return '';
     }
     
@@ -732,15 +736,21 @@ function generateDoxy20MinAnalytics(data, columns) {
     console.log('Valid data rows:', validData.length);
     if (validData.length > 0) {
         console.log('Sample valid row:', validData[0]);
+        console.log('Sample row current week value:', validData[0][currentWeekCol]);
+        console.log('Sample row prev week value:', validData[0][prevWeekCol]);
     }
     
     // Calculate changes and sort
     const providerAnalysis = validData.map(row => {
         const provider = row[providerCol];
-        const currentVisits = parseFloat(row[currentWeekCol]) || 0;
-        const prevVisits = parseFloat(row[prevWeekCol]) || 0;
+        const currentRaw = row[currentWeekCol];
+        const prevRaw = row[prevWeekCol];
+        const currentVisits = parseFloat(currentRaw) || 0;
+        const prevVisits = parseFloat(prevRaw) || 0;
         const change = currentVisits - prevVisits;
         const changePercent = prevVisits > 0 ? ((change / prevVisits) * 100) : 0;
+        
+        console.log(`Provider ${provider}: current=${currentRaw} (parsed: ${currentVisits}), prev=${prevRaw} (parsed: ${prevVisits})`);
         
         return {
             provider,
@@ -751,7 +761,8 @@ function generateDoxy20MinAnalytics(data, columns) {
         };
     });
     
-    console.log('Provider analysis:', providerAnalysis.slice(0, 3));
+    console.log('Provider analysis (first 3):', providerAnalysis.slice(0, 3));
+    console.log('Total providers analyzed:', providerAnalysis.length);
     
     // Best performers: Fewest visits over 20 min (most efficient)
     // Include providers with data (even if 0 this week but had visits before)
