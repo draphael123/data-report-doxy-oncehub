@@ -451,8 +451,12 @@ function generateDoxyVisitsAnalytics(data, columns) {
         .sort((a, b) => a.trend - b.trend)
         .slice(0, 5);
     
-    // Calculate average
-    const avgVisits = (latestTotal / data.length).toFixed(1);
+    // Calculate average per provider
+    const activeProviders = data.filter(row => row[providerCol] && row[latestWeek] !== null && row[latestWeek] !== undefined);
+    const avgVisits = activeProviders.length > 0 ? (latestTotal / activeProviders.length).toFixed(1) : 0;
+    const previousAvg = activeProviders.length > 0 ? (previousTotal / activeProviders.length).toFixed(1) : 0;
+    const avgChange = avgVisits - previousAvg;
+    const avgPercentChange = previousAvg !== 0 ? ((avgChange / previousAvg) * 100).toFixed(1) : 0;
     
     // Count providers trending up vs down
     const trendingUp = providersWithTrends.filter(p => p.trend > 0).length;
@@ -472,6 +476,15 @@ function generateDoxyVisitsAnalytics(data, columns) {
                 <div class="analytics-change ${change >= 0 ? 'positive' : 'negative'}">
                     <span class="arrow">${change >= 0 ? '↑' : '↓'}</span>
                     <span>${Math.abs(change).toLocaleString()} visits (${Math.abs(percentChange)}%) vs last week</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3>Average per Provider</h3>
+                <div class="analytics-value">${parseFloat(avgVisits).toLocaleString()}</div>
+                <div class="analytics-change ${avgChange >= 0 ? 'positive' : 'negative'}">
+                    <span class="arrow">${avgChange >= 0 ? '↑' : '↓'}</span>
+                    <span>${Math.abs(avgChange).toFixed(1)} visits (${Math.abs(avgPercentChange)}%) vs last week</span>
                 </div>
             </div>
             
@@ -756,11 +769,16 @@ function generateDoxy20MinAnalytics(data, columns) {
     console.log('Best performers:', bestPerformers);
     console.log('Needs attention:', needsAttention);
     
-    // Calculate totals
+    // Calculate totals and averages
     const totalCurrent = providerAnalysis.reduce((sum, p) => sum + p.currentVisits, 0);
     const totalPrev = providerAnalysis.reduce((sum, p) => sum + p.prevVisits, 0);
     const totalChange = totalCurrent - totalPrev;
     const totalChangePercent = totalPrev > 0 ? ((totalChange / totalPrev) * 100) : 0;
+    
+    const avgCurrent = validData.length > 0 ? (totalCurrent / validData.length).toFixed(1) : 0;
+    const avgPrev = validData.length > 0 ? (totalPrev / validData.length).toFixed(1) : 0;
+    const avgChange = avgCurrent - avgPrev;
+    const avgChangePercent = avgPrev > 0 ? ((avgChange / avgPrev) * 100).toFixed(1) : 0;
     
     return `
         <div class="analytics-summary">
@@ -775,6 +793,15 @@ function generateDoxy20MinAnalytics(data, columns) {
                 <div class="analytics-change ${totalChange < 0 ? 'positive' : totalChange > 0 ? 'negative' : 'neutral'}">
                     <span>${totalChange >= 0 ? '+' : ''}${totalChange} (${totalChangePercent >= 0 ? '+' : ''}${totalChangePercent.toFixed(1)}%)</span>
                     <span>vs last week: ${totalPrev}</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3>Average per Provider</h3>
+                <div class="analytics-value">${parseFloat(avgCurrent).toLocaleString()}</div>
+                <div class="analytics-change ${avgChange < 0 ? 'positive' : avgChange > 0 ? 'negative' : 'neutral'}">
+                    <span>${avgChange >= 0 ? '+' : ''}${parseFloat(avgChange).toFixed(1)} (${avgChangePercent >= 0 ? '+' : ''}${avgChangePercent}%)</span>
+                    <span>vs last week: ${avgPrev}</span>
                 </div>
             </div>
         </div>
@@ -1675,6 +1702,11 @@ function updateSummaryCards(data, columns, tabName) {
         });
     }
     
+    // Calculate average per provider
+    const activeProvidersCount = validData.length;
+    const averageVisits = activeProvidersCount > 0 ? (totalVisits / activeProvidersCount) : 0;
+    const previousAverage = activeProvidersCount > 0 ? (previousVisits / activeProvidersCount) : 0;
+    
     // Update Total Visits card
     document.getElementById('totalVisitsValue').textContent = totalVisits.toLocaleString();
     const totalChangeEl = document.getElementById('totalVisitsChange');
@@ -1682,17 +1714,17 @@ function updateSummaryCards(data, columns, tabName) {
         const changePercent = ((totalVisits - previousVisits) / previousVisits * 100).toFixed(1);
         const changeValue = totalVisits - previousVisits;
         if (changeValue > 0) {
-            totalChangeEl.innerHTML = `<span class="positive">↑ ${changePercent}% (+${changeValue})</span>`;
+            totalChangeEl.innerHTML = `<span class="positive">↑ ${changePercent}% (+${changeValue})</span><span class="card-subtext">Avg per provider: ${averageVisits.toFixed(1)}</span>`;
             totalChangeEl.className = 'card-change positive';
         } else if (changeValue < 0) {
-            totalChangeEl.innerHTML = `<span class="negative">↓ ${changePercent}% (${changeValue})</span>`;
+            totalChangeEl.innerHTML = `<span class="negative">↓ ${changePercent}% (${changeValue})</span><span class="card-subtext">Avg per provider: ${averageVisits.toFixed(1)}</span>`;
             totalChangeEl.className = 'card-change negative';
         } else {
-            totalChangeEl.innerHTML = `<span class="neutral">→ No change</span>`;
+            totalChangeEl.innerHTML = `<span class="neutral">→ No change</span><span class="card-subtext">Avg per provider: ${averageVisits.toFixed(1)}</span>`;
             totalChangeEl.className = 'card-change neutral';
         }
     } else {
-        totalChangeEl.innerHTML = '';
+        totalChangeEl.innerHTML = `<span class="card-subtext">Avg per provider: ${averageVisits.toFixed(1)}</span>`;
     }
     
     // Find top performer
