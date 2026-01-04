@@ -81,6 +81,56 @@ for sheet_name in xls.sheet_names:
         print(f"Sample data:\n{df.head()}")
         print("\n" + "="*50 + "\n")
     
+    # Special handling for Gusto Hours - restructure from wide to proper format
+    elif sheet_name == "Gusto Hours ":
+        print("Applying special cleaning for Gusto Hours...")
+        
+        # In Gusto Hours, the structure is:
+        # Week columns (like "12/14-12/20 ") contain provider names
+        # Unnamed columns next to them contain the hours
+        
+        # Identify week columns and their corresponding data columns
+        week_pairs = []
+        for i, col in enumerate(df.columns):
+            if '/' in str(col) and '-' in str(col) and 'unnamed' not in str(col).lower():
+                # This is a week column, next unnamed column should have hours
+                if i + 1 < len(df.columns) and 'unnamed' in str(df.columns[i + 1]).lower():
+                    week_pairs.append((col, df.columns[i + 1]))
+                    print(f"  Found week pair: {col} (provider) -> {df.columns[i + 1]} (hours)")
+        
+        if week_pairs:
+            # Restructure: Create a proper table with Provider column and week columns
+            # Collect all unique providers
+            providers = set()
+            for week_col, _ in week_pairs:
+                providers.update(df[week_col].dropna().unique())
+            
+            # Remove "Provider" from the set if it exists
+            providers = [p for p in providers if str(p).lower() not in ['provider', 'total', 'nan']]
+            providers = sorted(providers)
+            
+            print(f"  Found {len(providers)} unique providers")
+            
+            # Build new dataframe
+            new_data = []
+            for provider in providers:
+                row = {'Provider': provider}
+                for week_col, hours_col in week_pairs:
+                    # Find the row where this provider appears in this week
+                    mask = df[week_col] == provider
+                    if mask.any():
+                        hours = df.loc[mask, hours_col].iloc[0]
+                        if pd.notna(hours):
+                            row[week_col.strip()] = hours
+                new_data.append(row)
+            
+            df = pd.DataFrame(new_data)
+            print(f"Restructured shape: {df.shape}")
+            print(f"Restructured columns: {list(df.columns)}")
+            print(f"Sample data:\n{df.head()}")
+        
+        print("\n" + "="*50 + "\n")
+    
     # Replace NaN, inf, -inf with None
     df = df.replace([float('inf'), float('-inf')], None)
     df = df.where(pd.notnull(df), None)
