@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Data Loading Test</h1>
+    <div id="status"></div>
+    <div id="results"></div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+        
+        async function test() {
+            statusDiv.innerHTML = '<p>Testing data load...</p>';
+            
+            try {
+                console.log('Fetching data.json...');
+                const response = await fetch('data.json');
+                console.log('Response:', response.status, response.ok);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Data loaded:', Object.keys(data));
+                
+                statusDiv.innerHTML = '<p class="success">✅ Data loaded successfully!</p>';
+                
+                let html = '<h2>Data Summary:</h2>';
+                html += `<p><strong>Total tabs:</strong> ${Object.keys(data).length}</p>`;
+                html += '<h3>Tabs:</h3><ul>';
+                
+                Object.keys(data).forEach(tabName => {
+                    const rows = data[tabName].length;
+                    const cols = data[tabName][0] ? Object.keys(data[tabName][0]).length : 0;
+                    html += `<li><strong>${tabName}:</strong> ${rows} rows, ${cols} columns</li>`;
+                });
+                
+                html += '</ul>';
+                html += '<h3>First Tab Sample Data:</h3>';
+                html += `<pre>${JSON.stringify(data[Object.keys(data)[0]][0], null, 2)}</pre>`;
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+                resultsDiv.innerHTML = `<pre>${error.stack}</pre>`;
+            }
+        }
+        
+        test();
+    </script>
+</body>
+</html>
+

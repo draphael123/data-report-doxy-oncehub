@@ -208,19 +208,35 @@ function setupSearchListener() {
 
 // Load tab data
 function loadTab(tabName) {
+    console.log(`loadTab called for: "${tabName}"`);
+    console.log('allData keys:', Object.keys(allData));
+    console.log('Tab exists in allData:', tabName in allData);
+    
     currentData = allData[tabName] || [];
+    console.log(`currentData length: ${currentData.length}`);
+    
+    if (currentData.length > 0) {
+        console.log('First row sample:', currentData[0]);
+    } else {
+        console.warn(`No data found for tab: ${tabName}`);
+    }
+    
     filteredData = [...currentData];
     sortColumn = null;
     sortDirection = 'asc';
     
+    console.log('Rendering analytics...');
     // Generate and render analytics
     renderAnalytics(tabName, currentData);
     
+    console.log('Rendering charts...');
     // Generate and render charts
     renderCharts(tabName, currentData);
     
+    console.log('Rendering table...');
     // Render table
     renderTable(filteredData);
+    console.log('loadTab completed');
 }
 
 // Filter data based on search
@@ -695,16 +711,29 @@ function generateGenericAnalytics(data, columns, weekColumns) {
 
 // Render table
 function renderTable(data) {
+    console.log('renderTable called with data length:', data ? data.length : 'null');
+    
     const tableWrapper = document.getElementById('tableWrapper');
+    console.log('tableWrapper element found:', !!tableWrapper);
+    
+    if (!tableWrapper) {
+        console.error('tableWrapper element not found!');
+        return;
+    }
     
     // Update row count
-    document.getElementById('rowCount').textContent = 
-        `Showing ${data.length} of ${currentData.length} rows`;
+    const rowCountEl = document.getElementById('rowCount');
+    if (rowCountEl) {
+        rowCountEl.textContent = `Showing ${data ? data.length : 0} of ${currentData.length} rows`;
+    }
     
     if (!data || data.length === 0) {
+        console.warn('No data to render');
         tableWrapper.innerHTML = '<p class="no-results">No data available for this tab.</p>';
         return;
     }
+    
+    console.log('Data has rows, proceeding to render table...');
     
     // Get all unique columns from the data
     const columns = [...new Set(data.flatMap(row => Object.keys(row)))];
