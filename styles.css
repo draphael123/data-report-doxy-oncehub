@@ -665,9 +665,49 @@ header h1 {
     overflow-x: auto;
     max-height: 800px;
     overflow-y: auto;
+    position: relative;
+    scroll-behavior: smooth;
     /* Custom scrollbar for better readability */
     scrollbar-width: thin;
     scrollbar-color: rgba(99, 102, 241, 0.5) rgba(226, 232, 240, 0.3);
+}
+
+/* Horizontal scroll shadows to indicate more content */
+#tableWrapper::before,
+#tableWrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    z-index: 5;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+#tableWrapper::before {
+    left: 0;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.95), transparent);
+    opacity: 0;
+}
+
+#tableWrapper::after {
+    right: 0;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.95), transparent);
+    opacity: 1;
+}
+
+#tableWrapper.scrolled-left::before {
+    opacity: 1;
+}
+
+#tableWrapper.scrolled-right::after {
+    opacity: 0;
+}
+
+#tableWrapper.scrolled-middle::before,
+#tableWrapper.scrolled-middle::after {
+    opacity: 1;
 }
 
 #tableWrapper::-webkit-scrollbar {
@@ -696,6 +736,22 @@ table {
     border-spacing: 0;
     font-size: 0.95rem;
     font-variant-numeric: tabular-nums; /* Better number alignment */
+    position: relative;
+}
+
+/* Sticky first column (provider names) */
+table th:first-child,
+table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: white;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.08);
+}
+
+table thead th:first-child {
+    z-index: 11; /* Above other sticky headers */
+    background: linear-gradient(135deg, rgba(99, 102, 241, 1) 0%, rgba(79, 70, 229, 1) 100%);
 }
 
 thead {
@@ -2607,6 +2663,25 @@ kbd {
 .dark-mode td {
     color: #f1f5f9;
     border-bottom-color: rgba(71, 85, 105, 0.5);
+}
+
+/* Dark mode scroll shadows */
+.dark-mode #tableWrapper::before {
+    background: linear-gradient(to right, rgba(30, 41, 59, 0.95), transparent);
+}
+
+.dark-mode #tableWrapper::after {
+    background: linear-gradient(to left, rgba(30, 41, 59, 0.95), transparent);
+}
+
+/* Dark mode sticky first column */
+.dark-mode table td:first-child {
+    background: rgba(30, 41, 59, 0.95);
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode table thead th:first-child {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 1) 0%, rgba(79, 70, 229, 1) 100%);
 }
 
 .dark-mode tbody tr.row-even {

@@ -1252,6 +1252,9 @@ function renderTable(data) {
     
     // Add sparklines to each row
     addSparklinesToRows(data, weekCols);
+    
+    // Setup horizontal scroll indicators
+    setupTableScrollListener();
 }
 
 // Add sparklines to table rows
@@ -2883,5 +2886,41 @@ function updateFilterPresetsList() {
 }
 
 // Initialize on load
+// Handle horizontal scroll shadows for table
+function updateScrollShadows() {
+    const tableWrapper = document.getElementById('tableWrapper');
+    if (!tableWrapper) return;
+    
+    const scrollLeft = tableWrapper.scrollLeft;
+    const scrollWidth = tableWrapper.scrollWidth;
+    const clientWidth = tableWrapper.clientWidth;
+    const maxScroll = scrollWidth - clientWidth;
+    
+    // Remove all scroll classes
+    tableWrapper.classList.remove('scrolled-left', 'scrolled-right', 'scrolled-middle');
+    
+    // Add appropriate classes based on scroll position
+    if (scrollLeft <= 5) {
+        // At the left edge
+        tableWrapper.classList.add('scrolled-left');
+    } else if (scrollLeft >= maxScroll - 5) {
+        // At the right edge
+        tableWrapper.classList.add('scrolled-right');
+    } else {
+        // In the middle
+        tableWrapper.classList.add('scrolled-middle');
+    }
+}
+
+// Setup scroll listener for table
+function setupTableScrollListener() {
+    const tableWrapper = document.getElementById('tableWrapper');
+    if (tableWrapper) {
+        tableWrapper.addEventListener('scroll', updateScrollShadows);
+        // Initial update
+        setTimeout(updateScrollShadows, 100);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
