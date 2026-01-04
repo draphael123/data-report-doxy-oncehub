@@ -1,6 +1,6 @@
 // Global state
 let allData = {};
-let currentTab = 'Doxy Visits';
+let currentTab = 'Home';
 let currentData = [];
 let filteredData = [];
 let sortColumn = null;
@@ -235,6 +235,12 @@ function loadTab(tabName) {
     console.log(`loadTab called for: "${tabName}"`);
     console.log('allData keys:', Object.keys(allData));
     console.log('Tab exists in allData:', tabName in allData);
+    
+    // Special handling for Home tab
+    if (tabName === 'Home') {
+        renderHomePage();
+        return;
+    }
     
     // Special handling for Weekly Changes tab
     if (tabName === 'Weekly Changes') {
@@ -1423,6 +1429,273 @@ function generateSmartInsights(data, columns, tabName) {
 
 function closeInsights() {
     document.getElementById('insightsPanel').style.display = 'none';
+}
+
+// Render Home Page with Guide and Weekly Summary
+function renderHomePage() {
+    console.log('Rendering Home page...');
+    
+    // Hide elements not needed for this view
+    document.getElementById('analyticsSection').classList.remove('visible');
+    document.getElementById('chartsSection').innerHTML = '';
+    document.getElementById('weeklyAveragesSection').style.display = 'none';
+    document.getElementById('monthlySummary').style.display = 'none';
+    document.getElementById('summaryCardsSection').style.display = 'none';
+    document.getElementById('insightsPanel').style.display = 'none';
+    document.getElementById('quickFiltersSection').style.display = 'none';
+    
+    // Calculate weekly summary across all data sources
+    const weeklySummary = calculateWeeklySummary();
+    
+    // Build home page HTML
+    let html = `
+        <div class="home-container">
+            <div class="home-hero">
+                <h1>📊 Doxy & Oncehub Reports Dashboard</h1>
+                <p class="hero-subtitle">Comprehensive analytics and reporting for provider performance tracking</p>
+            </div>
+            
+            <div class="weekly-summary-section">
+                <h2>📈 This Week at a Glance</h2>
+                <p class="section-subtitle">Comparing current week vs. previous week across all metrics</p>
+                
+                <div class="summary-grid">
+                    ${weeklySummary.map(item => `
+                        <div class="summary-card ${item.change >= 0 ? 'positive' : 'negative'}">
+                            <div class="summary-icon">${item.icon}</div>
+                            <div class="summary-content">
+                                <h3>${item.title}</h3>
+                                <div class="summary-value">${item.currentValue}</div>
+                                <div class="summary-comparison">
+                                    <span class="comparison-label">Last week:</span>
+                                    <span class="comparison-value">${item.previousValue}</span>
+                                </div>
+                                <div class="summary-change ${item.change >= 0 ? 'positive' : 'negative'}">
+                                    <span class="change-arrow">${item.change >= 0 ? '↑' : '↓'}</span>
+                                    <span class="change-amount">${Math.abs(item.change).toFixed(1)}</span>
+                                    <span class="change-percent">(${item.change >= 0 ? '+' : ''}${item.percentChange.toFixed(1)}%)</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div class="guide-section">
+                <h2>📖 How to Use This Dashboard</h2>
+                
+                <div class="guide-grid">
+                    <div class="guide-card">
+                        <div class="guide-icon">🗂️</div>
+                        <h3>Navigate Tabs</h3>
+                        <p>Click on tabs at the top to view different datasets:</p>
+                        <ul>
+                            <li><strong>Doxy Visits:</strong> Provider visit data week by week</li>
+                            <li><strong>Weekly Changes:</strong> Top increases/decreases across all data</li>
+                            <li><strong>Gusto Hours:</strong> Provider hours worked</li>
+                            <li><strong>Doxy 20+ Minutes:</strong> Extended visit durations</li>
+                            <li><strong>Oncehub Reports:</strong> Various program and visit metrics</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="guide-card">
+                        <div class="guide-icon">🔍</div>
+                        <h3>Search & Filter</h3>
+                        <p>Use the powerful search and filtering tools:</p>
+                        <ul>
+                            <li>Type in the <strong>search box</strong> to find specific providers</li>
+                            <li>Click <strong>column headers</strong> to sort data</li>
+                            <li>Use <strong>Quick Filters</strong> (All, Active, Top 10, etc.)</li>
+                            <li>Apply <strong>date range filters</strong> for specific periods</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="guide-card">
+                        <div class="guide-icon">📊</div>
+                        <h3>View Week Details</h3>
+                        <p>Click the 📊 icon in week column headers to see:</p>
+                        <ul>
+                            <li><strong>Provider rankings</strong> for that specific week</li>
+                            <li><strong>Performance statistics</strong> and distribution</li>
+                            <li><strong>Top performers</strong> with medals (🥇🥈🥉)</li>
+                            <li><strong>Visual charts</strong> showing performance tiers</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="guide-card">
+                        <div class="guide-icon">👤</div>
+                        <h3>Provider Details</h3>
+                        <p>Click on any provider name to view:</p>
+                        <ul>
+                            <li><strong>Complete history</strong> across all weeks</li>
+                            <li><strong>Total & average</strong> performance metrics</li>
+                            <li><strong>Week-by-week breakdown</strong> with trends</li>
+                            <li><strong>Additional information</strong> from all fields</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="guide-card">
+                        <div class="guide-icon">📥</div>
+                        <h3>Export Data</h3>
+                        <p>Save your data in multiple formats:</p>
+                        <ul>
+                            <li><strong>PDF:</strong> Formatted reports with charts</li>
+                            <li><strong>Excel:</strong> Spreadsheet with all data</li>
+                            <li><strong>CSV:</strong> Simple data export</li>
+                            <li><strong>Charts:</strong> Save visualizations as images</li>
+                            <li><strong>Clipboard:</strong> Copy for quick pasting</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="guide-card">
+                        <div class="guide-icon">🎨</div>
+                        <h3>Customize Display</h3>
+                        <p>Personalize your dashboard experience:</p>
+                        <ul>
+                            <li><strong>Theme:</strong> Choose Light, Dark, Midnight, Ocean, or Sunset</li>
+                            <li><strong>Density:</strong> Compact, Comfortable, or Spacious</li>
+                            <li><strong>Animations:</strong> Enable/disable for performance</li>
+                            <li><strong>Rows per page:</strong> Control how much data to display</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="guide-card">
+                        <div class="guide-icon">💡</div>
+                        <h3>Smart Features</h3>
+                        <p>Take advantage of intelligent analytics:</p>
+                        <ul>
+                            <li><strong>Tooltips:</strong> Hover over any element for detailed explanations</li>
+                            <li><strong>Heat maps:</strong> Color-coded cells show performance levels</li>
+                            <li><strong>Sparklines:</strong> Mini trend charts in provider rows</li>
+                            <li><strong>Anomaly detection:</strong> Automatic flagging of unusual changes</li>
+                            <li><strong>Smart insights:</strong> AI-powered observations and recommendations</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="guide-card">
+                        <div class="guide-icon">⌨️</div>
+                        <h3>Keyboard Shortcuts</h3>
+                        <p>Speed up your workflow with shortcuts:</p>
+                        <ul>
+                            <li><strong>S:</strong> Open Settings</li>
+                            <li><strong>E:</strong> Open Export menu</li>
+                            <li><strong>C:</strong> Open Comparison view</li>
+                            <li><strong>?:</strong> Open Help</li>
+                            <li><strong>Ctrl/Cmd + F:</strong> Focus search box</li>
+                            <li><strong>ESC:</strong> Close modals</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="quick-tips-section">
+                <h2>💡 Pro Tips</h2>
+                <div class="tips-grid">
+                    <div class="tip-card">
+                        <span class="tip-emoji">🎯</span>
+                        <p><strong>Focus on trends:</strong> Look at week-over-week changes rather than absolute numbers to spot meaningful patterns.</p>
+                    </div>
+                    <div class="tip-card">
+                        <span class="tip-emoji">🔄</span>
+                        <p><strong>Use comparisons:</strong> The Comparison feature lets you view two weeks side-by-side for detailed analysis.</p>
+                    </div>
+                    <div class="tip-card">
+                        <span class="tip-emoji">📈</span>
+                        <p><strong>Check anomalies:</strong> Red and yellow badges highlight unusual changes that may need attention.</p>
+                    </div>
+                    <div class="tip-card">
+                        <span class="tip-emoji">💾</span>
+                        <p><strong>Save favorites:</strong> Use filter presets to save commonly used search criteria.</p>
+                    </div>
+                    <div class="tip-card">
+                        <span class="tip-emoji">🌙</span>
+                        <p><strong>Try dark mode:</strong> Easier on the eyes during extended viewing sessions.</p>
+                    </div>
+                    <div class="tip-card">
+                        <span class="tip-emoji">📱</span>
+                        <p><strong>Mobile friendly:</strong> The dashboard is fully responsive and works great on tablets and phones.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="home-footer">
+                <p>📅 Data last updated: <strong>${new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true })}</strong></p>
+                <p>Need help? Click the ❓ button in the top-right corner or hover over any element for tooltips.</p>
+            </div>
+        </div>
+    `;
+    
+    const tableWrapper = document.getElementById('tableWrapper');
+    if (tableWrapper) {
+        tableWrapper.innerHTML = html;
+    }
+}
+
+// Calculate weekly summary across all data sources
+function calculateWeeklySummary() {
+    const summary = [];
+    
+    // Data sources to analyze
+    const sources = [
+        { name: 'Doxy Visits', icon: '🏥', label: 'Doxy Visits' },
+        { name: 'Gusto Hours ', icon: '⏰', label: 'Gusto Hours' },
+        { name: 'Doxy - Over 20 minutes', icon: '⏱️', label: 'Doxy 20+ Min Sessions' },
+        { name: 'Oncehub Report - Number of Visi', icon: '📞', label: 'Oncehub Visits' }
+    ];
+    
+    sources.forEach(source => {
+        if (!allData[source.name]) return;
+        
+        const data = allData[source.name].filter(row => {
+            const firstValue = Object.values(row)[0];
+            return firstValue && 
+                   firstValue !== 'Total' && 
+                   firstValue !== 'Provider' &&
+                   !String(firstValue).toLowerCase().includes('total');
+        });
+        
+        if (data.length === 0) return;
+        
+        const columns = Object.keys(data[0]);
+        
+        // Find week columns
+        const weekCols = columns.filter(col => {
+            const colStr = String(col);
+            return colStr.match(/week\s+of\s+\d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && colStr.includes('-') && !colStr.toLowerCase().includes('unnamed'));
+        });
+        
+        if (weekCols.length < 2) return;
+        
+        // Get last two weeks
+        const currentWeekCol = weekCols[weekCols.length - 1];
+        const previousWeekCol = weekCols[weekCols.length - 2];
+        
+        // Calculate totals
+        let currentTotal = 0;
+        let previousTotal = 0;
+        
+        data.forEach(row => {
+            const currentVal = parseFloat(row[currentWeekCol]);
+            const previousVal = parseFloat(row[previousWeekCol]);
+            
+            if (!isNaN(currentVal)) currentTotal += currentVal;
+            if (!isNaN(previousVal)) previousTotal += previousVal;
+        });
+        
+        const change = currentTotal - previousTotal;
+        const percentChange = previousTotal > 0 ? (change / previousTotal) * 100 : 0;
+        
+        summary.push({
+            title: source.label,
+            icon: source.icon,
+            currentValue: currentTotal.toFixed(1),
+            previousValue: previousTotal.toFixed(1),
+            change: change,
+            percentChange: percentChange
+        });
+    });
+    
+    return summary;
 }
 
 // Render Weekly Changes Analysis Tab
