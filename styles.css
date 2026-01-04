@@ -1214,6 +1214,43 @@ tfoot.sticky-summary th:first-child {
     }
 }
 
+/* Info indicator styling */
+h3[title]::after {
+    content: "";
+    display: inline-block;
+    margin-left: 0.3rem;
+    cursor: help;
+    font-size: 0.9em;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+h3[title]:hover::after {
+    opacity: 1;
+}
+
+.analytics-card h3, 
+.weekly-averages-section h3,
+.top-performers h3 {
+    cursor: help;
+    position: relative;
+}
+
+/* Enhanced tooltip styling */
+[title] {
+    position: relative;
+    cursor: help;
+}
+
+/* Hover effects for elements with tooltips */
+td[title]:hover,
+.week-average[title]:hover,
+.analytics-value[title]:hover,
+.performer-item[title]:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: background-color 0.2s ease;
+}
+
 /* Smart Insights Panel */
 .insights-panel {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 1));

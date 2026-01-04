@@ -483,49 +483,57 @@ function generateDoxyVisitsAnalytics(data, columns) {
         </div>
         
         <div class="analytics-grid">
-            <div class="analytics-card ${change >= 0 ? 'positive' : 'negative'}">
-                <h3>Total Visits (Latest Week)</h3>
-                <div class="analytics-value">${latestTotal.toLocaleString()}</div>
-                <div class="analytics-change ${change >= 0 ? 'positive' : 'negative'}">
+            <div class="analytics-card ${change >= 0 ? 'positive' : 'negative'}" 
+                 title="Total visits for ${cleanColumnName(latestWeek)}\nPrevious week (${cleanColumnName(previousWeek)}): ${previousTotal.toLocaleString()}\nChange: ${change >= 0 ? '+' : ''}${change.toLocaleString()} (${percentChange}%)\nBased on ${activeProviders.length} active providers">
+                <h3 title="Combined total from all providers for the most recent week">Total Visits (Latest Week) ℹ️</h3>
+                <div class="analytics-value" title="${latestTotal.toLocaleString()} total visits">${latestTotal.toLocaleString()}</div>
+                <div class="analytics-change ${change >= 0 ? 'positive' : 'negative'}" 
+                     title="${change >= 0 ? 'Increased' : 'Decreased'} by ${Math.abs(change).toLocaleString()} visits (${Math.abs(percentChange)}%) compared to previous week">
                     <span class="arrow">${change >= 0 ? '↑' : '↓'}</span>
                     <span>${Math.abs(change).toLocaleString()} visits (${Math.abs(percentChange)}%) vs last week</span>
                 </div>
             </div>
             
-            <div class="analytics-card">
-                <h3>Average per Provider</h3>
-                <div class="analytics-value">${parseFloat(avgVisits).toLocaleString()}</div>
-                <div class="analytics-change ${avgChange >= 0 ? 'positive' : 'negative'}">
+            <div class="analytics-card" 
+                 title="Average visits per provider for ${cleanColumnName(latestWeek)}\nCalculation: ${latestTotal.toLocaleString()} ÷ ${activeProviders.length} providers = ${avgVisits}\nPrevious week avg: ${previousAvg}\nChange per provider: ${avgChange >= 0 ? '+' : ''}${avgChange} (${avgPercentChange}%)">
+                <h3 title="Mean visits per provider - helps normalize performance across team size">Average per Provider ℹ️</h3>
+                <div class="analytics-value" title="Average of ${avgVisits} visits per provider">${parseFloat(avgVisits).toLocaleString()}</div>
+                <div class="analytics-change ${avgChange >= 0 ? 'positive' : 'negative'}" 
+                     title="Average ${avgChange >= 0 ? 'increased' : 'decreased'} by ${Math.abs(avgChange)} visits (${Math.abs(avgPercentChange)}%) per provider vs last week">
                     <span class="arrow">${avgChange >= 0 ? '↑' : '↓'}</span>
                     <span>${Math.abs(avgChange).toFixed(1)} visits (${Math.abs(avgPercentChange)}%) vs last week</span>
                 </div>
             </div>
             
-            <div class="analytics-card">
-                <h3>Previous Week</h3>
-                <div class="analytics-value">${previousTotal.toLocaleString()}</div>
-                <div class="analytics-change neutral">
+            <div class="analytics-card" 
+                 title="Previous week data for comparison\n${cleanColumnName(previousWeek)}\nTotal visits: ${previousTotal.toLocaleString()}\nAverage per provider: ${previousAvg}\nActive providers: ${activeProviders.length}">
+                <h3 title="Comparison baseline - the week before the current week">Previous Week ℹ️</h3>
+                <div class="analytics-value" title="${previousTotal.toLocaleString()} total visits in ${cleanColumnName(previousWeek)}">${previousTotal.toLocaleString()}</div>
+                <div class="analytics-change neutral" title="Week of ${cleanColumnName(previousWeek)}">
                     <span>${cleanColumnName(previousWeek)}</span>
                 </div>
             </div>
             
-            <div class="analytics-card">
-                <h3>Average Visits per Provider</h3>
-                <div class="analytics-value">${avgVisits}</div>
-                <div class="analytics-change neutral">
+            <div class="analytics-card" 
+                 title="Current week average breakdown\nTotal visits: ${latestTotal.toLocaleString()}\nActive providers: ${data.length}\nAverage per provider: ${avgVisits}\nHighest provider: ${topPerformers[0]?.current || 'N/A'}\nLowest active provider: ${Math.min(...providersWithTrends.map(p => p.current).filter(v => v > 0))}">
+                <h3 title="Average visits per provider - another view of provider performance">Average Visits per Provider ℹ️</h3>
+                <div class="analytics-value" title="${avgVisits} average visits per provider">${avgVisits}</div>
+                <div class="analytics-change neutral" title="Calculated from ${data.length} providers with recorded data">
                     <span>Based on ${data.length} providers</span>
                 </div>
             </div>
         </div>
         
         <div class="top-performers">
-            <h3>🏆 Top 5 Performers (Current Week)</h3>
+            <h3 title="Top 5 providers by total visits in ${cleanColumnName(latestWeek)}">🏆 Top 5 Performers (Current Week)</h3>
             ${topPerformers.map((performer, idx) => `
-                <div class="performer-item">
-                    <span class="performer-rank">#${idx + 1}</span>
-                    <span class="performer-name">${performer.name}</span>
-                    <span class="performer-value">${performer.current.toLocaleString()}</span>
-                    <span class="performer-trend ${performer.trend >= 0 ? 'up' : 'down'}">
+                <div class="performer-item" 
+                     title="${performer.name} Performance Details\nCurrent week: ${performer.current} visits\nPrevious week: ${performer.previous} visits\nChange: ${performer.trend >= 0 ? '+' : ''}${performer.trend} (${performer.trendPercent}%)\n${((performer.current / latestTotal) * 100).toFixed(1)}% of total visits\n${(performer.current / avgVisits).toFixed(1)}x the average">
+                    <span class="performer-rank" title="Rank ${idx + 1} of ${topPerformers.length}">#${idx + 1}</span>
+                    <span class="performer-name" title="Click to see detailed history">${performer.name}</span>
+                    <span class="performer-value" title="${performer.current} visits this week">${performer.current.toLocaleString()}</span>
+                    <span class="performer-trend ${performer.trend >= 0 ? 'up' : 'down'}" 
+                          title="${performer.trend >= 0 ? 'Increased' : 'Decreased'} by ${Math.abs(performer.trend)} visits (${Math.abs(performer.trendPercent)}%) compared to previous week">
                         ${performer.trend >= 0 ? '↑' : '↓'} ${Math.abs(performer.trend)} (${Math.abs(performer.trendPercent)}%)
                     </span>
                 </div>
@@ -534,13 +542,14 @@ function generateDoxyVisitsAnalytics(data, columns) {
         
         ${biggestGains.length > 0 ? `
         <div class="top-performers">
-            <h3>📈 Biggest Increases Week-over-Week</h3>
+            <h3 title="Providers with the largest increase in visits compared to last week">📈 Biggest Increases Week-over-Week</h3>
             ${biggestGains.map((performer, idx) => `
-                <div class="performer-item">
-                    <span class="performer-rank">#${idx + 1}</span>
+                <div class="performer-item" 
+                     title="${performer.name} showed significant improvement\nPrevious week: ${performer.previous} visits\nCurrent week: ${performer.current} visits\nImprovement: +${performer.trend} visits (+${performer.trendPercent}%)\nThis is a ${((performer.trend / performer.previous) * 100).toFixed(0)}% increase">
+                    <span class="performer-rank" title="Rank ${idx + 1} for biggest improvement">#${idx + 1}</span>
                     <span class="performer-name">${performer.name}</span>
-                    <span class="performer-value">${performer.current.toLocaleString()}</span>
-                    <span class="performer-trend up">
+                    <span class="performer-value" title="${performer.current} visits (up from ${performer.previous})">${performer.current.toLocaleString()}</span>
+                    <span class="performer-trend up" title="Increased by ${performer.trend} visits (+${performer.trendPercent}%) from last week">
                         ↑ ${performer.trend} (+${performer.trendPercent}%)
                     </span>
                 </div>
@@ -550,13 +559,14 @@ function generateDoxyVisitsAnalytics(data, columns) {
         
         ${biggestDeclines.length > 0 ? `
         <div class="top-performers">
-            <h3>📉 Biggest Decreases Week-over-Week</h3>
+            <h3 title="Providers with the largest decrease in visits compared to last week - may need attention">📉 Biggest Decreases Week-over-Week</h3>
             ${biggestDeclines.map((performer, idx) => `
-                <div class="performer-item">
-                    <span class="performer-rank">#${idx + 1}</span>
+                <div class="performer-item" 
+                     title="${performer.name} needs attention\nPrevious week: ${performer.previous} visits\nCurrent week: ${performer.current} visits\nDecline: ${performer.trend} visits (${performer.trendPercent}%)\nThis is a ${Math.abs(((performer.trend / performer.previous) * 100)).toFixed(0)}% decrease">
+                    <span class="performer-rank" title="Rank ${idx + 1} for biggest decline">#${idx + 1}</span>
                     <span class="performer-name">${performer.name}</span>
-                    <span class="performer-value">${performer.current.toLocaleString()}</span>
-                    <span class="performer-trend down">
+                    <span class="performer-value" title="${performer.current} visits (down from ${performer.previous})">${performer.current.toLocaleString()}</span>
+                    <span class="performer-trend down" title="Decreased by ${Math.abs(performer.trend)} visits (${performer.trendPercent}%) from last week">
                         ↓ ${Math.abs(performer.trend)} (${performer.trendPercent}%)
                     </span>
                 </div>
@@ -1142,7 +1152,51 @@ function renderTable(data) {
                 cellContent = `<a href="#" class="provider-link" onclick="openProviderModal('${value.replace(/'/g, "\\'")}'); return false;">${cellContent}</a>`;
             }
             
-            html += `<td class="${cellClass}"${cellDataValue}>${cellContent}</td>`;
+            // Generate comprehensive tooltip for cells
+            let cellTooltip = '';
+            if (isNumber && weekCols.includes(col)) {
+                const numValue = parseFloat(value);
+                const providerName = row[meaningfulColumns[0]];
+                const weekLabel = cleanColumnName(col);
+                
+                // Calculate stats for this week column
+                const allValuesInCol = data.map(r => parseFloat(r[col])).filter(v => !isNaN(v) && v > 0);
+                const colTotal = allValuesInCol.reduce((sum, v) => sum + v, 0);
+                const colAverage = allValuesInCol.length > 0 ? colTotal / allValuesInCol.length : 0;
+                const colMax = Math.max(...allValuesInCol);
+                const colMin = Math.min(...allValuesInCol);
+                
+                const percentOfTotal = colTotal > 0 ? ((numValue / colTotal) * 100).toFixed(1) : 0;
+                const vsAverage = colAverage > 0 ? ((numValue / colAverage) * 100).toFixed(0) : 0;
+                
+                cellTooltip = `${providerName} - ${weekLabel}\n` +
+                    `Visits: ${numValue}\n` +
+                    `${percentOfTotal}% of week total (${colTotal})\n` +
+                    `${vsAverage}% of average (${colAverage.toFixed(1)})\n` +
+                    `Rank: ${allValuesInCol.filter(v => v > numValue).length + 1} of ${allValuesInCol.length}\n` +
+                    `Week range: ${colMin} - ${colMax}`;
+                
+                // Add WoW comparison if available
+                if (prevWeekCol && weekCols.indexOf(col) > 0 && weekCols.indexOf(col) === weekCols.indexOf(prevWeekCol) + 1) {
+                    const prevValue = parseFloat(row[prevWeekCol]);
+                    if (!isNaN(prevValue) && prevValue > 0) {
+                        const change = numValue - prevValue;
+                        const changePercent = ((change / prevValue) * 100).toFixed(1);
+                        cellTooltip += `\n\nWeek-over-Week:\n` +
+                            `Previous: ${prevValue}\n` +
+                            `Change: ${change > 0 ? '+' : ''}${change} (${changePercent}%)`;
+                    }
+                }
+            } else if (index === 0 && value && value !== '') {
+                // Provider name tooltip
+                cellTooltip = `${value}\nClick to view detailed performance history and analytics`;
+            } else if (!isNumber && value && value !== '') {
+                // Text cell tooltip
+                cellTooltip = `${cleanColumnName(col)}: ${value}`;
+            }
+            
+            const tooltipAttr = cellTooltip ? ` title="${cellTooltip.replace(/"/g, '&quot;')}"` : '';
+            html += `<td class="${cellClass}"${cellDataValue}${tooltipAttr}>${cellContent}</td>`;
         });
         
         // Add actions menu
@@ -1344,6 +1398,18 @@ function closeInsights() {
     document.getElementById('insightsPanel').style.display = 'none';
 }
 
+// Helper function to calculate standard deviation
+function calculateStdDev(values) {
+    if (values.length === 0) return 0;
+    const validValues = values.filter(v => !isNaN(v) && v !== null);
+    if (validValues.length === 0) return 0;
+    
+    const mean = validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
+    const squaredDiffs = validValues.map(val => Math.pow(val - mean, 2));
+    const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / validValues.length;
+    return Math.sqrt(variance);
+}
+
 // Generate weekly averages display
 function generateWeeklyAverages(data, columns, tabName) {
     const weekCols = columns.filter(col => {
@@ -1409,28 +1475,45 @@ function generateWeeklyAverages(data, columns, tabName) {
         };
     });
     
-    // Generate HTML
-    const gridHTML = weeklyStats.map(week => {
+    // Generate HTML with detailed context
+    const gridHTML = weeklyStats.map((week, idx) => {
         const trendClass = week.change > 0 ? 'positive' : week.change < 0 ? 'negative' : 'neutral';
         const trendArrow = week.change > 0 ? '↑' : week.change < 0 ? '↓' : '→';
         const badge = week.isLast ? '<span class="week-badge current">Current</span>' : '';
         
+        const avgTooltip = `Week of ${week.weekLabel} - Detailed Breakdown\n` +
+            `Average per provider: ${week.average.toFixed(2)}\n` +
+            `Calculation: ${week.total.toLocaleString()} total visits ÷ ${validData.length} providers\n` +
+            `Highest provider: ${Math.max(...validData.map(r => parseFloat(r[week.column]) || 0)).toFixed(0)} visits\n` +
+            `Lowest provider: ${Math.min(...validData.map(r => parseFloat(r[week.column]) || 0).filter(v => v > 0)).toFixed(0)} visits\n` +
+            `Standard deviation: ${calculateStdDev(validData.map(r => parseFloat(r[week.column]) || 0)).toFixed(2)}`;
+        
+        const changeTooltip = !week.isFirst ? 
+            `Week-over-Week Change\n` +
+            `Change from previous week: ${week.change > 0 ? '+' : ''}${week.change.toFixed(2)}\n` +
+            `Percentage change: ${week.changePercent > 0 ? '+' : ''}${week.changePercent.toFixed(2)}%\n` +
+            `Previous week avg: ${weeklyStats[idx - 1].average.toFixed(2)}\n` +
+            `This week avg: ${week.average.toFixed(2)}\n` +
+            `${week.change > 0 ? 'Performance improved' : week.change < 0 ? 'Performance declined' : 'Performance stable'} compared to last week` : 
+            'First week in dataset - no comparison available';
+        
         return `
-            <div class="weekly-avg-card ${week.isLast ? 'current-week' : ''}">
+            <div class="weekly-avg-card ${week.isLast ? 'current-week' : ''}" 
+                 title="${avgTooltip}">
                 <div class="week-label">
-                    <span class="week-date">Week of ${week.weekLabel}</span>
+                    <span class="week-date" title="Week starting ${week.weekLabel}">Week of ${week.weekLabel}</span>
                     ${badge}
                 </div>
-                <div class="week-average">${week.average.toFixed(1)}</div>
-                <div class="week-subtitle">avg per provider</div>
+                <div class="week-average" title="${avgTooltip}">${week.average.toFixed(1)}</div>
+                <div class="week-subtitle" title="Average visits per provider for this week">avg per provider</div>
                 ${!week.isFirst ? `
-                    <div class="week-change ${trendClass}">
+                    <div class="week-change ${trendClass}" title="${changeTooltip}">
                         <span class="change-arrow">${trendArrow}</span>
                         <span class="change-value">${Math.abs(week.change).toFixed(1)}</span>
                         <span class="change-percent">(${Math.abs(week.changePercent).toFixed(1)}%)</span>
                     </div>
-                ` : '<div class="week-change neutral"><span class="change-value">First week</span></div>'}
-                <div class="week-total">Total: ${week.total.toLocaleString()}</div>
+                ` : `<div class="week-change neutral" title="${changeTooltip}"><span class="change-value">First week</span></div>`}
+                <div class="week-total" title="Combined visits from all ${validData.length} providers">Total: ${week.total.toLocaleString()}</div>
             </div>
         `;
     }).join('');
@@ -2181,20 +2264,61 @@ function updateMonthlySummary(data, columns, tabName) {
         monthName = monthNames[month - 1] || 'This Month';
     }
     
-    // Update display
+    // Update display with detailed context
     document.getElementById('monthPeriod').textContent = `${monthName} • ${weekCols.length} week${weekCols.length > 1 ? 's' : ''} of data`;
+    document.getElementById('monthPeriod').setAttribute('title', 
+        `Data range: ${weekCols[0].match(/(\d+\/\d+)/)?.[0]} to ${weekCols[weekCols.length - 1].match(/(\d+\/\d+)/)?.[0]}\n` +
+        `${weekCols.length} week${weekCols.length > 1 ? 's' : ''} included in this calculation`
+    );
+    
     document.getElementById('monthlyTotal').textContent = monthlyTotal.toLocaleString();
+    document.getElementById('monthlyTotal').setAttribute('title', 
+        `Total across all ${activeProviders} provider${activeProviders !== 1 ? 's' : ''} for ${weekCols.length} week${weekCols.length !== 1 ? 's' : ''}\n` +
+        `Week breakdown:\n${weeklyTotals.map((val, i) => 
+            `Week ${i + 1} (${weekCols[i].match(/(\d+\/\d+)/)?.[0]}): ${val.toFixed(0)}`
+        ).join('\n')}`
+    );
     document.getElementById('monthlyWeeks').textContent = `From ${weekCols.length} week${weekCols.length > 1 ? 's' : ''}`;
     
     document.getElementById('weeklyAverage').textContent = weeklyAverage.toFixed(1);
+    document.getElementById('weeklyAverage').setAttribute('title', 
+        `Average visits per week: ${weeklyAverage.toFixed(1)}\n` +
+        `Calculated from ${monthlyTotal.toLocaleString()} total visits ÷ ${weekCols.length} weeks\n` +
+        `Highest week: ${Math.max(...weeklyTotals).toFixed(0)}\n` +
+        `Lowest week: ${Math.min(...weeklyTotals).toFixed(0)}\n` +
+        `Range: ${(Math.max(...weeklyTotals) - Math.min(...weeklyTotals)).toFixed(0)}`
+    );
     const trendArrow = trendPercent > 0 ? '↗' : trendPercent < 0 ? '↘' : '→';
     const trendClass = trendPercent > 0 ? 'positive' : trendPercent < 0 ? 'negative' : 'neutral';
     document.getElementById('weeklyTrend').innerHTML = `<span class="${trendClass}">${trendArrow} ${Math.abs(trendPercent).toFixed(1)}% trend</span>`;
+    document.getElementById('weeklyTrend').setAttribute('title', 
+        `Trend calculation: Comparing first half vs second half of weeks\n` +
+        `First half average: ${firstHalfAvg.toFixed(1)}\n` +
+        `Second half average: ${secondHalfAvg.toFixed(1)}\n` +
+        `${trendPercent > 0 ? 'Positive' : trendPercent < 0 ? 'Negative' : 'Neutral'} trend indicates performance is ${trendPercent > 0 ? 'improving' : trendPercent < 0 ? 'declining' : 'stable'}`
+    );
     
     document.getElementById('monthlyProviderAvg').textContent = monthlyProviderAvg.toFixed(1);
+    document.getElementById('monthlyProviderAvg').setAttribute('title', 
+        `Average visits per provider for the entire month\n` +
+        `${monthlyTotal.toLocaleString()} total visits ÷ ${activeProviders} provider${activeProviders !== 1 ? 's' : ''}\n` +
+        `This represents the typical performance of each provider\n` +
+        `Weekly average per provider: ${(weeklyAverage / activeProviders).toFixed(2)}`
+    );
     document.getElementById('providerCount').textContent = `${activeProviders} active provider${activeProviders > 1 ? 's' : ''}`;
     
     document.getElementById('monthlyProjection').textContent = monthlyProjection.toFixed(0);
+    document.getElementById('monthlyProjection').setAttribute('title', 
+        weeksRemaining > 0 ?
+        `4-week month projection based on current average\n` +
+        `Current data: ${weekCols.length} week${weekCols.length !== 1 ? 's' : ''} = ${monthlyTotal.toLocaleString()} visits\n` +
+        `Weekly average: ${weeklyAverage.toFixed(1)}\n` +
+        `Projected full month: ${weeklyAverage.toFixed(1)} × 4 weeks = ${monthlyProjection.toFixed(0)}\n` +
+        `Remaining weeks to reach projection: ${weeksRemaining}` :
+        `Full 4-week month data captured\n` +
+        `Total: ${monthlyTotal.toLocaleString()} visits\n` +
+        `This is the complete month total, not a projection`
+    );
     if (weeksRemaining > 0) {
         document.getElementById('projectionDetail').textContent = `Based on ${weekCols.length} weeks, ${weeksRemaining} to go`;
     } else {
@@ -2251,24 +2375,53 @@ function updateSummaryCards(data, columns, tabName) {
     const averageVisits = activeProvidersCount > 0 ? (totalVisits / activeProvidersCount) : 0;
     const previousAverage = activeProvidersCount > 0 ? (previousVisits / activeProvidersCount) : 0;
     
-    // Update Total Visits card
+    // Update Total Visits card with context
+    const currentWeekLabel = weekCols.length > 0 ? weekCols[weekCols.length - 1].match(/(\d+\/\d+)/)?.[0] : 'Current';
+    const prevWeekLabel = weekCols.length > 1 ? weekCols[weekCols.length - 2].match(/(\d+\/\d+)/)?.[0] : 'Previous';
+    
     document.getElementById('totalVisitsValue').textContent = totalVisits.toLocaleString();
+    document.getElementById('totalVisitsValue').setAttribute('title', 
+        `Total visits for week of ${currentWeekLabel}\n` +
+        `Based on ${activeProvidersCount} active provider${activeProvidersCount !== 1 ? 's' : ''}\n` +
+        `Average per provider: ${averageVisits.toFixed(1)}`
+    );
+    
     const totalChangeEl = document.getElementById('totalVisitsChange');
     if (previousVisits > 0) {
         const changePercent = ((totalVisits - previousVisits) / previousVisits * 100).toFixed(1);
         const changeValue = totalVisits - previousVisits;
+        const changeText = changeValue > 0 ? `+${changeValue}` : `${changeValue}`;
+        const avgChange = averageVisits - previousAverage;
+        const avgChangeText = avgChange > 0 ? `+${avgChange.toFixed(1)}` : `${avgChange.toFixed(1)}`;
+        
         if (changeValue > 0) {
-            totalChangeEl.innerHTML = `<span class="positive">↑ ${changePercent}% (+${changeValue})</span><span class="card-subtext">Avg per provider: ${averageVisits.toFixed(1)}</span>`;
+            totalChangeEl.innerHTML = `
+                <span class="positive" title="Increased by ${changeValue} visits (${changePercent}%) compared to ${prevWeekLabel}">
+                    ↑ ${changePercent}% (${changeText})
+                </span>
+                <span class="card-subtext" title="Average visits per provider this week vs last week">
+                    Avg/provider: ${averageVisits.toFixed(1)} (${avgChangeText})
+                </span>`;
             totalChangeEl.className = 'card-change positive';
         } else if (changeValue < 0) {
-            totalChangeEl.innerHTML = `<span class="negative">↓ ${changePercent}% (${changeValue})</span><span class="card-subtext">Avg per provider: ${averageVisits.toFixed(1)}</span>`;
+            totalChangeEl.innerHTML = `
+                <span class="negative" title="Decreased by ${Math.abs(changeValue)} visits (${Math.abs(changePercent)}%) compared to ${prevWeekLabel}">
+                    ↓ ${Math.abs(changePercent)}% (${changeText})
+                </span>
+                <span class="card-subtext" title="Average visits per provider this week vs last week">
+                    Avg/provider: ${averageVisits.toFixed(1)} (${avgChangeText})
+                </span>`;
             totalChangeEl.className = 'card-change negative';
         } else {
-            totalChangeEl.innerHTML = `<span class="neutral">→ No change</span><span class="card-subtext">Avg per provider: ${averageVisits.toFixed(1)}</span>`;
+            totalChangeEl.innerHTML = `
+                <span class="neutral" title="No change from ${prevWeekLabel}">→ No change</span>
+                <span class="card-subtext" title="Average visits per provider">
+                    Avg/provider: ${averageVisits.toFixed(1)}
+                </span>`;
             totalChangeEl.className = 'card-change neutral';
         }
     } else {
-        totalChangeEl.innerHTML = `<span class="card-subtext">Avg per provider: ${averageVisits.toFixed(1)}</span>`;
+        totalChangeEl.innerHTML = `<span class="card-subtext" title="Average visits per provider (no previous week data available)">Avg/provider: ${averageVisits.toFixed(1)}</span>`;
     }
     
     // Find top performer
@@ -2290,7 +2443,20 @@ function updateSummaryCards(data, columns, tabName) {
     }
     
     document.getElementById('topPerformerValue').textContent = topProvider || 'N/A';
+    document.getElementById('topPerformerValue').setAttribute('title', 
+        topProvider ? 
+        `${topProvider} had the highest number of visits this week (${currentWeekLabel})\n` +
+        `Performance: ${topVisits} visits\n` +
+        `${(topVisits / totalVisits * 100).toFixed(1)}% of total visits\n` +
+        `${(topVisits / averageVisits).toFixed(1)}x the average provider` : 
+        'No data available'
+    );
     document.getElementById('topPerformerVisits').textContent = topVisits > 0 ? `${topVisits} visits` : '';
+    document.getElementById('topPerformerVisits').setAttribute('title', 
+        topVisits > 0 ? 
+        `${topVisits} visits is ${(topVisits - averageVisits).toFixed(1)} above the average of ${averageVisits.toFixed(1)}` : 
+        ''
+    );
     
     // Count active programs
     const programCols = columns.filter(col => {
@@ -2320,12 +2486,27 @@ function updateSummaryCards(data, columns, tabName) {
         });
     }
     
+    const programsArray = Array.from(programs);
     document.getElementById('activeProgramsValue').textContent = programs.size || 'N/A';
-    document.getElementById('programsList').textContent = programs.size > 0 ? Array.from(programs).join(', ') : '';
+    document.getElementById('activeProgramsValue').setAttribute('title', 
+        programs.size > 0 ? 
+        `${programs.size} unique program${programs.size !== 1 ? 's' : ''} with activity\n` +
+        `Programs: ${programsArray.join(', ')}\n` +
+        `Average visits per program: ${(totalVisits / programs.size).toFixed(1)}` : 
+        'No program data available in this dataset'
+    );
+    document.getElementById('programsList').textContent = programs.size > 0 ? programsArray.slice(0, 3).join(', ') + (programs.size > 3 ? '...' : '') : '';
+    document.getElementById('programsList').setAttribute('title', programsArray.join('\n'));
     
     // Count active providers
     const activeProviders = validData.length;
     document.getElementById('activeProvidersValue').textContent = activeProviders;
+    document.getElementById('activeProvidersValue').setAttribute('title', 
+        `${activeProviders} provider${activeProviders !== 1 ? 's' : ''} with recorded data\n` +
+        `Average per provider: ${averageVisits.toFixed(1)} visits\n` +
+        `Total contribution: ${totalVisits.toLocaleString()} visits\n` +
+        `Highest: ${topVisits} | Lowest: ${Math.min(...validData.map(r => parseFloat(r[weekCols[weekCols.length - 1]]) || 0).filter(v => v > 0))}`
+    );
 }
 
 // Quick Filters
