@@ -68,6 +68,9 @@ function loadTab(tabName) {
     // Generate and render analytics
     renderAnalytics(tabName, currentData);
     
+    // Generate and render charts
+    renderCharts(tabName, currentData);
+    
     // Render table
     renderTable(filteredData);
 }
@@ -632,6 +635,376 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+// Render charts
+let currentCharts = [];
+
+function renderCharts(tabName, data) {
+    const chartsSection = document.getElementById('chartsSection');
+    
+    // Clear existing charts
+    currentCharts.forEach(chart => chart.destroy());
+    currentCharts = [];
+    
+    if (!data || data.length === 0) {
+        chartsSection.classList.remove('visible');
+        return;
+    }
+    
+    const columns = Object.keys(data[0] || {});
+    
+    // Generate charts based on tab type
+    let chartsHTML = '';
+    
+    if (tabName === 'Doxy Visits') {
+        chartsHTML = generateDoxyVisitsCharts(data, columns);
+    } else if (tabName === 'Gusto Hours ') {
+        chartsHTML = generateGustoHoursCharts(data, columns);
+    } else if (tabName === 'Doxy - Over 20 minutes') {
+        chartsHTML = generateDoxy20MinCharts(data, columns);
+    } else if (tabName.includes('Program')) {
+        chartsHTML = generateProgramCharts(data, columns);
+    }
+    
+    if (chartsHTML) {
+        chartsSection.innerHTML = `<div class="charts-grid">${chartsHTML}</div>`;
+        chartsSection.classList.add('visible');
+        
+        // Initialize charts after DOM update
+        setTimeout(() => initializeCharts(tabName, data, columns), 100);
+    } else {
+        chartsSection.classList.remove('visible');
+    }
+}
+
+function generateDoxyVisitsCharts(data, columns) {
+    return `
+        <div class="chart-card">
+            <h3>📈 Visits Trend</h3>
+            <canvas id="visitsTrendChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>👥 Top 10 Providers</h3>
+            <canvas id="topProvidersChart"></canvas>
+        </div>
+    `;
+}
+
+function generateGustoHoursCharts(data, columns) {
+    return `
+        <div class="chart-card">
+            <h3>⏰ Hours Distribution</h3>
+            <canvas id="hoursDistChart"></canvas>
+        </div>
+    `;
+}
+
+function generateDoxy20MinCharts(data, columns) {
+    return `
+        <div class="chart-card">
+            <h3>⏱️ Visit Duration Distribution</h3>
+            <canvas id="durationChart"></canvas>
+        </div>
+    `;
+}
+
+function generateProgramCharts(data, columns) {
+    return `
+        <div class="chart-card">
+            <h3>📊 Program Distribution</h3>
+            <canvas id="programDistChart"></canvas>
+        </div>
+    `;
+}
+
+function initializeCharts(tabName, data, columns) {
+    if (tabName === 'Doxy Visits') {
+        initDoxyVisitsCharts(data, columns);
+    } else if (tabName === 'Gusto Hours ') {
+        initGustoHoursCharts(data, columns);
+    } else if (tabName === 'Doxy - Over 20 minutes') {
+        initDoxy20MinCharts(data, columns);
+    } else if (tabName.includes('Program')) {
+        initProgramCharts(data, columns);
+    }
+}
+
+function initDoxyVisitsCharts(data, columns) {
+    // Visits Trend Chart
+    const weekCols = columns.filter(col => col.match(/\d+\/\d+/) || col.includes('-'));
+    if (weekCols.length > 0 && document.getElementById('visitsTrendChart')) {
+        const weekTotals = weekCols.map(col => {
+            return data.reduce((sum, row) => {
+                const val = parseFloat(row[col]);
+                return sum + (isNaN(val) ? 0 : val);
+            }, 0);
+        });
+        
+        const ctx = document.getElementById('visitsTrendChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: weekCols.map(col => cleanColumnName(col)),
+                datasets: [{
+                    label: 'Total Visits',
+                    data: weekTotals,
+                    borderColor: 'rgb(99, 102, 241)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: 'rgb(99, 102, 241)',
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyFont: { size: 13 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+        currentCharts.push(chart);
+    }
+    
+    // Top Providers Chart
+    const providerCol = columns.find(col => col.toLowerCase().includes('provider'));
+    const latestWeek = weekCols[weekCols.length - 1];
+    
+    if (providerCol && latestWeek && document.getElementById('topProvidersChart')) {
+        const topProviders = data
+            .filter(row => row[providerCol] && row[latestWeek])
+            .map(row => ({
+                name: row[providerCol],
+                value: parseFloat(row[latestWeek]) || 0
+            }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10);
+        
+        const ctx = document.getElementById('topProvidersChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: topProviders.map(p => p.name),
+                datasets: [{
+                    label: 'Visits',
+                    data: topProviders.map(p => p.value),
+                    backgroundColor: topProviders.map((_, i) => 
+                        `rgba(${99 + i * 15}, ${102 - i * 5}, 241, ${0.8 - i * 0.05})`
+                    ),
+                    borderRadius: 8,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+        currentCharts.push(chart);
+    }
+}
+
+function initGustoHoursCharts(data, columns) {
+    const weekCols = columns.filter(col => col.match(/\d+\/\d+/));
+    const latestWeek = weekCols[weekCols.length - 1];
+    
+    if (latestWeek && document.getElementById('hoursDistChart')) {
+        const providerCol = columns[0];
+        const hoursData = data
+            .filter(row => row[providerCol] && row[latestWeek])
+            .map(row => ({
+                name: row[providerCol],
+                value: parseFloat(row[latestWeek]) || 0
+            }))
+            .sort((a, b) => b.value - a.value);
+        
+        const ctx = document.getElementById('hoursDistChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: hoursData.map(p => p.name),
+                datasets: [{
+                    data: hoursData.map(p => p.value),
+                    backgroundColor: [
+                        'rgba(99, 102, 241, 0.8)',
+                        'rgba(236, 72, 153, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(239, 68, 68, 0.8)',
+                        'rgba(34, 197, 94, 0.8)'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { padding: 15, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        callbacks: {
+                            label: (context) => {
+                                return ` ${context.label}: ${context.parsed} hrs`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        currentCharts.push(chart);
+    }
+}
+
+function initDoxy20MinCharts(data, columns) {
+    const percentCol = columns.find(col => 
+        col.toLowerCase().includes('percent') || col.toLowerCase().includes('%')
+    );
+    
+    if (percentCol && document.getElementById('durationChart')) {
+        const providerCol = columns.find(col => col.toLowerCase().includes('provider') || col === 'Unnamed: 0');
+        const validData = data
+            .filter(row => {
+                const val = parseFloat(row[percentCol]);
+                return !isNaN(val) && val > 0 && row[providerCol];
+            })
+            .map(row => ({
+                name: row[providerCol],
+                value: parseFloat(row[percentCol])
+            }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10);
+        
+        const ctx = document.getElementById('durationChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: validData.map(p => p.name),
+                datasets: [{
+                    label: '% Over 20 Minutes',
+                    data: validData.map(p => p.value),
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                    borderRadius: 8,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        callbacks: {
+                            label: (context) => ` ${context.parsed.x.toFixed(1)}%`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+        currentCharts.push(chart);
+    }
+}
+
+function initProgramCharts(data, columns) {
+    const programCol = columns.find(col => col.toLowerCase().includes('program'));
+    
+    if (programCol && document.getElementById('programDistChart')) {
+        const programCounts = {};
+        data.forEach(row => {
+            if (row[programCol]) {
+                programCounts[row[programCol]] = (programCounts[row[programCol]] || 0) + 1;
+            }
+        });
+        
+        const ctx = document.getElementById('programDistChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(programCounts),
+                datasets: [{
+                    data: Object.values(programCounts),
+                    backgroundColor: [
+                        'rgba(99, 102, 241, 0.8)',
+                        'rgba(236, 72, 153, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)'
+                    ],
+                    borderWidth: 3,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 20, font: { size: 13, weight: 'bold' } }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12
+                    }
+                }
+            }
+        });
+        currentCharts.push(chart);
+    }
 }
 
 // Initialize on load
