@@ -938,32 +938,32 @@ function renderTable(data) {
     const prevWeekCol = weekCols.length > 1 ? weekCols[weekCols.length - 2] : null;
     
     // Add data rows with enhanced visual indicators
-    data.forEach(row => {
+    data.forEach((row, rowIndex) => {
         const currentWeekValue = currentWeekCol ? parseFloat(row[currentWeekCol]) : null;
         const prevWeekValue = prevWeekCol ? parseFloat(row[prevWeekCol]) : null;
         
         // Detect anomalies
-        let rowClass = '';
+        let rowClass = rowIndex % 2 === 0 ? 'row-even' : 'row-odd';
         let anomalyFlag = '';
         
         if (!isNaN(currentWeekValue) && !isNaN(prevWeekValue) && prevWeekValue > 0) {
             const changePercent = ((currentWeekValue - prevWeekValue) / prevWeekValue) * 100;
             
             if (changePercent < -anomalyThresholds.largeDropPercent) {
-                rowClass = 'anomaly-warning';
+                rowClass += ' anomaly-warning';
                 anomalyFlag = `<span class="anomaly-badge warning" title="Large drop: ${changePercent.toFixed(0)}%">⚠️</span>`;
             } else if (changePercent > anomalyThresholds.largeIncreasePercent) {
-                rowClass = 'anomaly-success';
+                rowClass += ' anomaly-success';
                 anomalyFlag = `<span class="anomaly-badge success" title="Large increase: ${changePercent.toFixed(0)}%">🚀</span>`;
             }
         }
         
         if (anomalyThresholds.zeroVisitsWarning && currentWeekValue === 0 && prevWeekValue > 0) {
-            rowClass = 'anomaly-alert';
+            rowClass += ' anomaly-alert';
             anomalyFlag = `<span class="anomaly-badge alert" title="Zero visits this week">🔴</span>`;
         }
         
-        html += `<tr class="${rowClass}">`;
+        html += `<tr class="${rowClass}" data-row="${rowIndex}">`;
         meaningfulColumns.forEach((col, index) => {
             let value = row[col];
             
@@ -977,7 +977,37 @@ function renderTable(data) {
             // Check if it's a number
             const isNumber = !isNaN(parseFloat(value)) && isFinite(value) && value !== '';
             let cellClass = isNumber ? 'number' : '';
-            let cellContent = escapeHtml(value);
+            let cellContent = '';
+            
+            // Format numbers for better readability
+            if (isNumber) {
+                const numValue = parseFloat(value);
+                
+                // Check if it's a percentage (value between 0-100 with decimals or contains %)
+                if (value.includes('%') || (numValue >= 0 && numValue <= 100 && value.includes('.'))) {
+                    cellContent = numValue.toFixed(1) + (value.includes('%') ? '' : '%');
+                    cellClass += ' percentage';
+                } else if (numValue === 0) {
+                    // Style zeros differently
+                    cellContent = '—';
+                    cellClass += ' zero-value';
+                } else if (Math.abs(numValue) >= 1000) {
+                    // Add comma separators for large numbers
+                    cellContent = numValue.toLocaleString('en-US', {maximumFractionDigits: 1});
+                } else if (numValue % 1 !== 0) {
+                    // Has decimals - limit to 2 decimal places
+                    cellContent = numValue.toFixed(2);
+                } else {
+                    // Whole number
+                    cellContent = numValue.toLocaleString('en-US');
+                }
+            } else if (value === '') {
+                // Empty values
+                cellContent = '<span class="empty-cell">—</span>';
+                cellClass += ' empty';
+            } else {
+                cellContent = escapeHtml(value);
+            }
             
             // Add trend indicators to week columns
             if (col === currentWeekCol && !isNaN(currentWeekValue) && !isNaN(prevWeekValue)) {
@@ -1022,6 +1052,68 @@ function renderTable(data) {
     html += '</tbody></table>';
     
     tableWrapper.innerHTML = html;
+    
+    // Enhance table interactivity
+    enhanceTableReadability();
+}
+
+// Enhance table readability with column highlighting
+function enhanceTableReadability() {
+    const table = document.querySelector('table');
+    if (!table) return;
+    
+    const rows = table.querySelectorAll('tbody tr');
+    const headerCells = table.querySelectorAll('thead th');
+    
+    // Add column hover effects
+    headerCells.forEach((th, colIndex) => {
+        th.addEventListener('mouseenter', () => {
+            highlightColumn(colIndex, true);
+        });
+        
+        th.addEventListener('mouseleave', () => {
+            highlightColumn(colIndex, false);
+        });
+    });
+    
+    // Highlight column on cell hover
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        cells.forEach((cell, colIndex) => {
+            cell.addEventListener('mouseenter', () => {
+                highlightColumn(colIndex, true);
+            });
+            
+            cell.addEventListener('mouseleave', () => {
+                highlightColumn(colIndex, false);
+            });
+        });
+    });
+}
+
+function highlightColumn(colIndex, highlight) {
+    const table = document.querySelector('table');
+    if (!table) return;
+    
+    // Highlight header
+    const headerCell = table.querySelector(`thead th:nth-child(${colIndex + 1})`);
+    if (headerCell) {
+        if (highlight) {
+            headerCell.classList.add('col-highlight');
+        } else {
+            headerCell.classList.remove('col-highlight');
+        }
+    }
+    
+    // Highlight all cells in column
+    const cells = table.querySelectorAll(`tbody td:nth-child(${colIndex + 1})`);
+    cells.forEach(cell => {
+        if (highlight) {
+            cell.classList.add('col-highlight');
+        } else {
+            cell.classList.remove('col-highlight');
+        }
+    });
 }
 
 // Clean column names for display

@@ -652,34 +652,60 @@ header h1 {
 }
 
 .table-container {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.98);
     border-radius: 16px;
-    box-shadow: var(--shadow-xl);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
     overflow: hidden;
     margin-bottom: 30px;
     backdrop-filter: blur(10px);
-    border: 2px solid rgba(255, 255, 255, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.8);
 }
 
 #tableWrapper {
     overflow-x: auto;
     max-height: 800px;
     overflow-y: auto;
+    /* Custom scrollbar for better readability */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.5) rgba(226, 232, 240, 0.3);
+}
+
+#tableWrapper::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+#tableWrapper::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.3);
+    border-radius: 5px;
+}
+
+#tableWrapper::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.5);
+    border-radius: 5px;
+    transition: background 0.2s ease;
+}
+
+#tableWrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.7);
 }
 
 table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 0.95rem;
+    font-variant-numeric: tabular-nums; /* Better number alignment */
 }
 
 thead {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(236, 72, 153, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 1) 0%, rgba(79, 70, 229, 1) 50%, rgba(99, 102, 241, 1) 100%);
     color: white;
     position: sticky;
     top: 0;
     z-index: 10;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-bottom: 3px solid rgba(236, 72, 153, 0.6);
 }
 
 th {
@@ -821,12 +847,74 @@ td.trend-down {
 td {
     padding: 16px 20px;
     white-space: nowrap;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    transition: background-color 0.15s ease;
 }
 
 td.number {
     text-align: right;
     font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+}
+
+/* Zebra Striping for Better Readability */
+tbody tr.row-even {
+    background-color: rgba(248, 250, 252, 0.5);
+}
+
+tbody tr.row-odd {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+tbody tr:hover {
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, rgba(236, 72, 153, 0.05) 100%) !important;
+    transform: translateX(4px);
+}
+
+/* Column Hover Highlighting */
+table {
+    position: relative;
+}
+
+td:hover {
+    background-color: rgba(99, 102, 241, 0.05);
+    position: relative;
+}
+
+th.col-highlight,
+td.col-highlight {
+    background-color: rgba(99, 102, 241, 0.12) !important;
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.2);
+}
+
+.dark-mode th.col-highlight,
+.dark-mode td.col-highlight {
+    background-color: rgba(99, 102, 241, 0.2) !important;
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.3);
+}
+
+/* Empty and Zero Values */
+.empty-cell {
+    color: var(--text-secondary);
+    opacity: 0.5;
+    font-style: italic;
+}
+
+td.zero-value {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+/* Percentage Values */
+td.percentage {
+    font-weight: 700;
+}
+
+td.percentage::after {
+    content: '';
+    margin-left: 2px;
 }
 
 .loading {
@@ -1699,6 +1787,31 @@ kbd {
 .dark-mode tbody tr,
 .dark-mode td {
     color: #f1f5f9;
+    border-bottom-color: rgba(71, 85, 105, 0.5);
+}
+
+.dark-mode tbody tr.row-even {
+    background-color: rgba(30, 41, 59, 0.4);
+}
+
+.dark-mode tbody tr.row-odd {
+    background-color: rgba(51, 65, 85, 0.3);
+}
+
+.dark-mode tbody tr:hover {
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, rgba(236, 72, 153, 0.1) 100%) !important;
+}
+
+.dark-mode td:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+}
+
+.dark-mode .empty-cell {
+    color: #94a3b8;
+}
+
+.dark-mode td.zero-value {
+    color: #94a3b8;
 }
 
 .dark-mode .performer-name {
