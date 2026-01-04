@@ -1007,7 +1007,25 @@ function renderTable(data) {
     meaningfulColumns.forEach(col => {
         const sortClass = sortColumn === col ? `sort-${sortDirection}` : '';
         const displayName = cleanColumnName(col);
-        html += `<th class="${sortClass}" onclick="sortData('${col.replace(/'/g, "\\'")}')">${displayName}</th>`;
+        
+        // Check if this is a week column
+        const colStr = String(col);
+        const isWeekColumn = colStr.match(/week\s+of\s+\d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && colStr.includes('-') && !colStr.toLowerCase().includes('unnamed'));
+        
+        if (isWeekColumn) {
+            // Week column with view button
+            html += `<th class="${sortClass}">
+                <div class="week-header">
+                    <span onclick="sortData('${col.replace(/'/g, "\\'")}')">${displayName}</span>
+                    <button class="view-week-btn" onclick="openWeekModal('${col.replace(/'/g, "\\'")}'); event.stopPropagation();" title="View detailed breakdown for this week">
+                        📊
+                    </button>
+                </div>
+            </th>`;
+        } else {
+            // Regular column
+            html += `<th class="${sortClass}" onclick="sortData('${col.replace(/'/g, "\\'")}')">${displayName}</th>`;
+        }
     });
     
     // Add actions column
@@ -2783,6 +2801,161 @@ function openProviderModal(providerName) {
     
     document.getElementById('providerContent').innerHTML = html;
     openModal('providerModal');
+}
+
+// Open Week Detail Modal
+function openWeekModal(weekColumn) {
+    if (!currentData || currentData.length === 0) return;
+    
+    const columns = Object.keys(currentData[0]);
+    const providerCol = columns[0];
+    
+    // Filter valid data
+    const validData = currentData.filter(row => {
+        const provider = row[providerCol];
+        return provider && !String(provider).toLowerCase().includes('total') && !String(provider).toLowerCase().includes('provider');
+    });
+    
+    const weekLabel = cleanColumnName(weekColumn);
+    document.getElementById('weekModalTitle').textContent = `📅 ${weekLabel}`;
+    
+    // Get all provider data for this week
+    const weekData = validData.map(row => ({
+        provider: row[providerCol],
+        value: parseFloat(row[weekColumn]) || 0
+    })).filter(item => item.value > 0 || item.value === 0);
+    
+    // Sort by value descending
+    weekData.sort((a, b) => b.value - a.value);
+    
+    // Calculate statistics
+    const total = weekData.reduce((sum, item) => sum + item.value, 0);
+    const average = weekData.length > 0 ? total / weekData.length : 0;
+    const highest = weekData.length > 0 ? weekData[0] : null;
+    const lowest = weekData.length > 0 ? weekData[weekData.length - 1] : null;
+    
+    // Build HTML
+    let html = '<div class="week-detail-stats">';
+    
+    // Summary statistics cards
+    html += `
+        <div class="stat-cards-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-label">Total</div>
+                <div class="stat-value">${total.toLocaleString()}</div>
+                <div class="stat-subtext">Combined from all providers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-label">Average</div>
+                <div class="stat-value">${average.toFixed(1)}</div>
+                <div class="stat-subtext">Per provider</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-label">Active Providers</div>
+                <div class="stat-value">${weekData.length}</div>
+                <div class="stat-subtext">With recorded data</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🏆</div>
+                <div class="stat-label">Top Performer</div>
+                <div class="stat-value">${highest ? highest.provider : 'N/A'}</div>
+                <div class="stat-subtext">${highest ? highest.value.toLocaleString() + ' visits' : ''}</div>
+            </div>
+        </div>
+    `;
+    
+    html += '</div>';
+    
+    // Rankings table
+    html += `<div class="week-rankings">`;
+    html += `<h3>Provider Rankings for ${weekLabel}</h3>`;
+    html += `<table class="detail-table rankings-table">
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Provider</th>
+                <th>Value</th>
+                <th>% of Total</th>
+                <th>vs Average</th>
+            </tr>
+        </thead>
+        <tbody>`;
+    
+    weekData.forEach((item, index) => {
+        const percentOfTotal = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
+        const vsAverage = average > 0 ? ((item.value / average) * 100).toFixed(0) : 0;
+        const vsAverageClass = item.value > average ? 'positive' : item.value < average ? 'negative' : 'neutral';
+        
+        // Medal emojis for top 3
+        let rankDisplay = index + 1;
+        if (index === 0) rankDisplay = '🥇';
+        else if (index === 1) rankDisplay = '🥈';
+        else if (index === 2) rankDisplay = '🥉';
+        
+        html += `
+            <tr>
+                <td class="rank-cell">${rankDisplay}</td>
+                <td class="provider-cell">${escapeHtml(item.provider)}</td>
+                <td class="number">${item.value.toLocaleString()}</td>
+                <td class="number">${percentOfTotal}%</td>
+                <td class="number ${vsAverageClass}">${vsAverage}%</td>
+            </tr>
+        `;
+    });
+    
+    html += `</tbody></table></div>`;
+    
+    // Distribution chart area
+    html += `<div class="week-distribution">`;
+    html += `<h3>Distribution Analysis</h3>`;
+    html += `<div class="distribution-bars">`;
+    
+    // Group providers into performance tiers
+    const excellent = weekData.filter(item => item.value >= average * 1.2).length;
+    const good = weekData.filter(item => item.value >= average && item.value < average * 1.2).length;
+    const belowAverage = weekData.filter(item => item.value < average && item.value > 0).length;
+    const noActivity = weekData.filter(item => item.value === 0).length;
+    
+    html += `
+        <div class="distribution-item">
+            <div class="distribution-label">Excellent (≥120% of avg)</div>
+            <div class="distribution-bar">
+                <div class="distribution-fill excellent" style="width: ${(excellent / weekData.length * 100)}%"></div>
+            </div>
+            <div class="distribution-count">${excellent} providers</div>
+        </div>
+        <div class="distribution-item">
+            <div class="distribution-label">Good (100-119% of avg)</div>
+            <div class="distribution-bar">
+                <div class="distribution-fill good" style="width: ${(good / weekData.length * 100)}%"></div>
+            </div>
+            <div class="distribution-count">${good} providers</div>
+        </div>
+        <div class="distribution-item">
+            <div class="distribution-label">Below Average (<100% of avg)</div>
+            <div class="distribution-bar">
+                <div class="distribution-fill below" style="width: ${(belowAverage / weekData.length * 100)}%"></div>
+            </div>
+            <div class="distribution-count">${belowAverage} providers</div>
+        </div>
+        ${noActivity > 0 ? `
+        <div class="distribution-item">
+            <div class="distribution-label">No Activity</div>
+            <div class="distribution-bar">
+                <div class="distribution-fill none" style="width: ${(noActivity / weekData.length * 100)}%"></div>
+            </div>
+            <div class="distribution-count">${noActivity} providers</div>
+        </div>
+        ` : ''}
+    `;
+    
+    html += `</div></div>`;
+    
+    document.getElementById('weekContent').innerHTML = html;
+    openModal('weekModal');
 }
 
 // Helper functions for new features
