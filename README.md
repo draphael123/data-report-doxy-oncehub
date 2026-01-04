@@ -10,8 +10,10 @@ An interactive web dashboard for viewing and analyzing Doxy and OnceHub reports.
 ## Features
 
 ✨ **Interactive Tabs** - Switch between 9 different report views
+📊 **Week-over-Week Analytics** - Automatic performance tracking and insights
 🔍 **Real-time Search** - Search across all columns instantly
-📊 **Sortable Columns** - Click any column header to sort
+📈 **Top Performers Tracking** - See rankings and leaders in each category
+↕️ **Sortable Columns** - Click any column header to sort
 🎨 **Modern Design** - Beautiful, responsive UI that works on all devices
 📱 **Mobile Friendly** - Fully responsive design
 ⚡ **Fast Performance** - Smooth interactions with large datasets
@@ -42,6 +44,17 @@ python -m http.server 8000
 
 # Then open: http://localhost:8000
 ```
+
+## Analytics Dashboard
+
+Each tab now includes automatic week-over-week analytics:
+- 📊 **Performance Metrics** - Total visits, hours, and activity tracking
+- 📈 **Trend Analysis** - Week-over-week changes with percentage indicators
+- 🏆 **Top Performers** - Ranked lists of highest performers
+- 📉 **Comparative Data** - Previous week comparisons
+- 🎯 **Key Insights** - Average calculations and distributions
+
+See [ANALYTICS.md](ANALYTICS.md) for detailed documentation on all analytics features.
 
 ## Features Guide
 
