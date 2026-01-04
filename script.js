@@ -671,26 +671,50 @@ function generateGustoHoursAnalytics(data, columns) {
 
 // Analytics for Doxy Over 20 Minutes
 function generateDoxy20MinAnalytics(data, columns) {
-    // Find provider column and week columns with visit counts
-    const providerCol = columns.find(col => col.toLowerCase().includes('provider') || col === 'Unnamed: 0');
+    console.log('generateDoxy20MinAnalytics called');
+    console.log('Data rows:', data.length);
+    console.log('Columns:', columns);
+    
+    // Find provider column - use Unnamed: 0 which contains provider names
+    const providerCol = 'Unnamed: 0';
+    
+    // Find week columns that contain visit data
     const weekCols = columns.filter(col => {
         const colStr = String(col);
-        return colStr.match(/week of \d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed'));
+        // Match "WEEK OF 11/30" or "Week of 12/6" pattern
+        return colStr.match(/week of \d+\/\d+/i);
     });
     
-    if (!providerCol || weekCols.length < 2) return '';
+    console.log('Provider column:', providerCol);
+    console.log('Week columns:', weekCols);
+    
+    if (!providerCol || weekCols.length < 2) {
+        console.warn('Not enough data for Doxy 20min analytics');
+        return '';
+    }
     
     // Get current and previous week
     const currentWeekCol = weekCols[weekCols.length - 1];
     const prevWeekCol = weekCols[weekCols.length - 2];
     
+    console.log('Current week col:', currentWeekCol);
+    console.log('Previous week col:', prevWeekCol);
+    
     // Filter valid data (exclude headers and totals)
     const validData = data.filter(row => {
         const provider = row[providerCol];
-        return provider && 
+        const isValid = provider && 
                provider !== 'Provider' && 
-               !String(provider).toLowerCase().includes('total');
+               provider !== 'provider' &&
+               !String(provider).toLowerCase().includes('total') &&
+               !String(provider).toLowerCase().includes('grand total');
+        return isValid;
     });
+    
+    console.log('Valid data rows:', validData.length);
+    if (validData.length > 0) {
+        console.log('Sample valid row:', validData[0]);
+    }
     
     // Calculate changes and sort
     const providerAnalysis = validData.map(row => {
@@ -709,10 +733,18 @@ function generateDoxy20MinAnalytics(data, columns) {
         };
     });
     
+    console.log('Provider analysis:', providerAnalysis.slice(0, 3));
+    
     // Best performers: Fewest visits over 20 min (most efficient)
+    // Include providers with data (even if 0 this week but had visits before)
     const bestPerformers = [...providerAnalysis]
-        .filter(p => p.currentVisits > 0 || p.prevVisits > 0) // Has some data
-        .sort((a, b) => a.currentVisits - b.currentVisits)
+        .sort((a, b) => {
+            // Sort by current visits (ascending), then by previous visits
+            if (a.currentVisits !== b.currentVisits) {
+                return a.currentVisits - b.currentVisits;
+            }
+            return a.prevVisits - b.prevVisits;
+        })
         .slice(0, 5);
     
     // Needs attention: Most visits over 20 min (least efficient)
@@ -720,6 +752,9 @@ function generateDoxy20MinAnalytics(data, columns) {
         .filter(p => p.currentVisits > 0)
         .sort((a, b) => b.currentVisits - a.currentVisits)
         .slice(0, 5);
+    
+    console.log('Best performers:', bestPerformers);
+    console.log('Needs attention:', needsAttention);
     
     // Calculate totals
     const totalCurrent = providerAnalysis.reduce((sum, p) => sum + p.currentVisits, 0);
@@ -748,7 +783,7 @@ function generateDoxy20MinAnalytics(data, columns) {
             <div class="top-performers positive">
                 <h3>✅ Most Efficient (Fewest Visits > 20 min)</h3>
                 <div class="performers-list">
-                    ${bestPerformers.map((p, index) => `
+                    ${bestPerformers.length > 0 ? bestPerformers.map((p, index) => `
                         <div class="performer-item">
                             <span class="rank">#${index + 1}</span>
                             <span class="provider-name">${escapeHtml(p.provider)}</span>
@@ -761,14 +796,14 @@ function generateDoxy20MinAnalytics(data, columns) {
                                 ` : ''}
                             </span>
                         </div>
-                    `).join('')}
+                    `).join('') : '<p style="color: var(--text-secondary); padding: 16px;">No data available for this period.</p>'}
                 </div>
             </div>
             
             <div class="top-performers warning">
                 <h3>⚠️ Needs Attention (Most Visits > 20 min)</h3>
                 <div class="performers-list">
-                    ${needsAttention.map((p, index) => `
+                    ${needsAttention.length > 0 ? needsAttention.map((p, index) => `
                         <div class="performer-item">
                             <span class="rank">#${index + 1}</span>
                             <span class="provider-name">${escapeHtml(p.provider)}</span>
@@ -781,7 +816,7 @@ function generateDoxy20MinAnalytics(data, columns) {
                                 ` : ''}
                             </span>
                         </div>
-                    `).join('')}
+                    `).join('') : '<p style="color: var(--text-secondary); padding: 16px;">No providers with visits over 20 minutes this week.</p>'}
                 </div>
             </div>
         </div>
