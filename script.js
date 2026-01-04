@@ -294,6 +294,10 @@ function loadTab(tabName) {
     // Generate insights
     generateSmartInsights(currentData, columns, tabName);
     
+    console.log('Generating weekly averages...');
+    // Generate weekly averages
+    generateWeeklyAverages(currentData, columns, tabName);
+    
     console.log('loadTab completed');
 }
 
@@ -1338,6 +1342,101 @@ function generateSmartInsights(data, columns, tabName) {
 
 function closeInsights() {
     document.getElementById('insightsPanel').style.display = 'none';
+}
+
+// Generate weekly averages display
+function generateWeeklyAverages(data, columns, tabName) {
+    const weekCols = columns.filter(col => {
+        const colStr = String(col);
+        return colStr.match(/week\s+of\s+\d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed'));
+    });
+    
+    if (weekCols.length === 0) {
+        document.getElementById('weeklyAveragesSection').style.display = 'none';
+        return;
+    }
+    
+    const providerCol = columns[0];
+    const validData = data.filter(row => {
+        const provider = row[providerCol];
+        return provider && 
+               provider !== 'Provider' && 
+               provider !== 'provider' &&
+               !String(provider).toLowerCase().includes('total');
+    });
+    
+    if (validData.length === 0) {
+        document.getElementById('weeklyAveragesSection').style.display = 'none';
+        return;
+    }
+    
+    // Calculate average for each week
+    const weeklyStats = weekCols.map((col, index) => {
+        const weekTotal = validData.reduce((sum, row) => {
+            const val = parseFloat(row[col]);
+            return sum + (isNaN(val) ? 0 : val);
+        }, 0);
+        
+        const average = validData.length > 0 ? (weekTotal / validData.length) : 0;
+        
+        // Calculate change from previous week
+        let change = 0;
+        let changePercent = 0;
+        if (index > 0) {
+            const prevCol = weekCols[index - 1];
+            const prevTotal = validData.reduce((sum, row) => {
+                const val = parseFloat(row[prevCol]);
+                return sum + (isNaN(val) ? 0 : val);
+            }, 0);
+            const prevAverage = validData.length > 0 ? (prevTotal / validData.length) : 0;
+            change = average - prevAverage;
+            changePercent = prevAverage > 0 ? ((change / prevAverage) * 100) : 0;
+        }
+        
+        // Extract week date for display
+        const weekMatch = String(col).match(/(\d+\/\d+)/);
+        const weekLabel = weekMatch ? weekMatch[1] : col;
+        
+        return {
+            column: col,
+            weekLabel,
+            total: weekTotal,
+            average: average,
+            change: change,
+            changePercent: changePercent,
+            isFirst: index === 0,
+            isLast: index === weekCols.length - 1
+        };
+    });
+    
+    // Generate HTML
+    const gridHTML = weeklyStats.map(week => {
+        const trendClass = week.change > 0 ? 'positive' : week.change < 0 ? 'negative' : 'neutral';
+        const trendArrow = week.change > 0 ? '↑' : week.change < 0 ? '↓' : '→';
+        const badge = week.isLast ? '<span class="week-badge current">Current</span>' : '';
+        
+        return `
+            <div class="weekly-avg-card ${week.isLast ? 'current-week' : ''}">
+                <div class="week-label">
+                    <span class="week-date">Week of ${week.weekLabel}</span>
+                    ${badge}
+                </div>
+                <div class="week-average">${week.average.toFixed(1)}</div>
+                <div class="week-subtitle">avg per provider</div>
+                ${!week.isFirst ? `
+                    <div class="week-change ${trendClass}">
+                        <span class="change-arrow">${trendArrow}</span>
+                        <span class="change-value">${Math.abs(week.change).toFixed(1)}</span>
+                        <span class="change-percent">(${Math.abs(week.changePercent).toFixed(1)}%)</span>
+                    </div>
+                ` : '<div class="week-change neutral"><span class="change-value">First week</span></div>'}
+                <div class="week-total">Total: ${week.total.toLocaleString()}</div>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('weeklyAveragesGrid').innerHTML = gridHTML;
+    document.getElementById('weeklyAveragesSection').style.display = 'block';
 }
 
 // View mode switching
