@@ -7,6 +7,20 @@ let sortColumn = null;
 let sortDirection = 'asc';
 let activeFilters = {};
 
+// Goal Configuration
+const goals = {
+    weeklyVisitsPerProvider: 50,  // Target visits per provider per week
+    programMinimum: 3,             // Minimum number of programs
+    providerUtilization: 0.8       // 80% utilization target
+};
+
+// Anomaly thresholds
+const anomalyThresholds = {
+    zeroVisitsWarning: true,       // Flag providers with zero visits
+    largeDropPercent: 50,          // Flag drops > 50%
+    largeIncreasePercent: 100      // Flag increases > 100%
+};
+
 // Initialize the app
 async function init() {
     console.log('Initializing dashboard...');
@@ -253,6 +267,20 @@ function loadTab(tabName) {
     console.log('Rendering charts...');
     // Generate and render charts
     renderCharts(tabName, currentData);
+    
+    console.log('Updating summary cards...');
+    // Update summary cards
+    const columns = currentData.length > 0 ? Object.keys(currentData[0]) : [];
+    updateSummaryCards(currentData, columns, tabName);
+    
+    // Reset quick filter to 'all'
+    currentQuickFilter = 'all';
+    document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-filter') === 'all') {
+            btn.classList.add('active');
+        }
+    });
     
     console.log('Rendering table...');
     // Render table
@@ -842,10 +870,43 @@ function renderTable(data) {
     
     html += '</tr></thead><tbody>';
     
-    // Add data rows
+    // Detect week columns for trend analysis
+    const weekCols = meaningfulColumns.filter(col => {
+        const colStr = String(col);
+        return colStr.match(/week of \d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed'));
+    });
+    
+    const currentWeekCol = weekCols.length > 0 ? weekCols[weekCols.length - 1] : null;
+    const prevWeekCol = weekCols.length > 1 ? weekCols[weekCols.length - 2] : null;
+    
+    // Add data rows with enhanced visual indicators
     data.forEach(row => {
-        html += '<tr>';
-        meaningfulColumns.forEach(col => {
+        const currentWeekValue = currentWeekCol ? parseFloat(row[currentWeekCol]) : null;
+        const prevWeekValue = prevWeekCol ? parseFloat(row[prevWeekCol]) : null;
+        
+        // Detect anomalies
+        let rowClass = '';
+        let anomalyFlag = '';
+        
+        if (!isNaN(currentWeekValue) && !isNaN(prevWeekValue) && prevWeekValue > 0) {
+            const changePercent = ((currentWeekValue - prevWeekValue) / prevWeekValue) * 100;
+            
+            if (changePercent < -anomalyThresholds.largeDropPercent) {
+                rowClass = 'anomaly-warning';
+                anomalyFlag = `<span class="anomaly-badge warning" title="Large drop: ${changePercent.toFixed(0)}%">⚠️</span>`;
+            } else if (changePercent > anomalyThresholds.largeIncreasePercent) {
+                rowClass = 'anomaly-success';
+                anomalyFlag = `<span class="anomaly-badge success" title="Large increase: ${changePercent.toFixed(0)}%">🚀</span>`;
+            }
+        }
+        
+        if (anomalyThresholds.zeroVisitsWarning && currentWeekValue === 0 && prevWeekValue > 0) {
+            rowClass = 'anomaly-alert';
+            anomalyFlag = `<span class="anomaly-badge alert" title="Zero visits this week">🔴</span>`;
+        }
+        
+        html += `<tr class="${rowClass}">`;
+        meaningfulColumns.forEach((col, index) => {
             let value = row[col];
             
             // Handle null/undefined
@@ -857,9 +918,40 @@ function renderTable(data) {
             
             // Check if it's a number
             const isNumber = !isNaN(parseFloat(value)) && isFinite(value) && value !== '';
-            const cellClass = isNumber ? 'number' : '';
+            let cellClass = isNumber ? 'number' : '';
+            let cellContent = escapeHtml(value);
             
-            html += `<td class="${cellClass}">${escapeHtml(value)}</td>`;
+            // Add trend indicators to week columns
+            if (col === currentWeekCol && !isNaN(currentWeekValue) && !isNaN(prevWeekValue)) {
+                const change = currentWeekValue - prevWeekValue;
+                let trendArrow = '';
+                
+                if (change > 0) {
+                    trendArrow = `<span class="trend-arrow up" title="+${change}">↑</span>`;
+                    cellClass += ' trend-up';
+                } else if (change < 0) {
+                    trendArrow = `<span class="trend-arrow down" title="${change}">↓</span>`;
+                    cellClass += ' trend-down';
+                } else {
+                    trendArrow = `<span class="trend-arrow neutral" title="No change">→</span>`;
+                }
+                
+                cellContent = `${cellContent} ${trendArrow}`;
+            }
+            
+            // Add progress bar for current week visits
+            if (col === currentWeekCol && !isNaN(currentWeekValue) && currentWeekValue > 0) {
+                const goalPercent = Math.min((currentWeekValue / goals.weeklyVisitsPerProvider) * 100, 100);
+                const barColor = goalPercent >= 100 ? '#10b981' : goalPercent >= 80 ? '#f59e0b' : '#ef4444';
+                cellContent += `<div class="progress-bar"><div class="progress-fill" style="width: ${goalPercent}%; background: ${barColor}"></div></div>`;
+            }
+            
+            // Add anomaly flag to first column
+            if (index === 0 && anomalyFlag) {
+                cellContent = `${anomalyFlag} ${cellContent}`;
+            }
+            
+            html += `<td class="${cellClass}">${cellContent}</td>`;
         });
         html += '</tr>';
     });
@@ -1350,6 +1442,221 @@ function initProgramCharts(data, columns) {
         });
         currentCharts.push(chart);
     }
+}
+
+// Summary Cards Update
+function updateSummaryCards(data, columns, tabName) {
+    console.log('Updating summary cards for:', tabName);
+    
+    // Filter out header and total rows
+    const validData = data.filter(row => {
+        const firstCol = row[columns[0]];
+        return firstCol && 
+               firstCol !== 'Provider' && 
+               firstCol !== 'provider' &&
+               !String(firstCol).toLowerCase().includes('total') &&
+               !String(firstCol).toLowerCase().includes('grand total');
+    });
+    
+    // Get week columns
+    const weekCols = columns.filter(col => {
+        const colStr = String(col);
+        return colStr.match(/week of \d+\/\d+/i) || colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed');
+    });
+    
+    console.log('Week columns found:', weekCols);
+    
+    // Calculate total visits (for current week)
+    let totalVisits = 0;
+    let previousVisits = 0;
+    
+    if (weekCols.length > 0) {
+        const currentWeekCol = weekCols[weekCols.length - 1];
+        const prevWeekCol = weekCols.length > 1 ? weekCols[weekCols.length - 2] : null;
+        
+        validData.forEach(row => {
+            const val = parseFloat(row[currentWeekCol]);
+            if (!isNaN(val)) totalVisits += val;
+            
+            if (prevWeekCol) {
+                const prevVal = parseFloat(row[prevWeekCol]);
+                if (!isNaN(prevVal)) previousVisits += prevVal;
+            }
+        });
+    }
+    
+    // Update Total Visits card
+    document.getElementById('totalVisitsValue').textContent = totalVisits.toLocaleString();
+    const totalChangeEl = document.getElementById('totalVisitsChange');
+    if (previousVisits > 0) {
+        const changePercent = ((totalVisits - previousVisits) / previousVisits * 100).toFixed(1);
+        const changeValue = totalVisits - previousVisits;
+        if (changeValue > 0) {
+            totalChangeEl.innerHTML = `<span class="positive">↑ ${changePercent}% (+${changeValue})</span>`;
+            totalChangeEl.className = 'card-change positive';
+        } else if (changeValue < 0) {
+            totalChangeEl.innerHTML = `<span class="negative">↓ ${changePercent}% (${changeValue})</span>`;
+            totalChangeEl.className = 'card-change negative';
+        } else {
+            totalChangeEl.innerHTML = `<span class="neutral">→ No change</span>`;
+            totalChangeEl.className = 'card-change neutral';
+        }
+    } else {
+        totalChangeEl.innerHTML = '';
+    }
+    
+    // Find top performer
+    const providerCol = columns[0];
+    let topProvider = null;
+    let topVisits = 0;
+    
+    if (weekCols.length > 0) {
+        const currentWeekCol = weekCols[weekCols.length - 1];
+        
+        validData.forEach(row => {
+            const provider = row[providerCol];
+            const visits = parseFloat(row[currentWeekCol]);
+            if (provider && !isNaN(visits) && visits > topVisits) {
+                topVisits = visits;
+                topProvider = provider;
+            }
+        });
+    }
+    
+    document.getElementById('topPerformerValue').textContent = topProvider || 'N/A';
+    document.getElementById('topPerformerVisits').textContent = topVisits > 0 ? `${topVisits} visits` : '';
+    
+    // Count active programs
+    const programCols = columns.filter(col => {
+        const colLower = String(col).toLowerCase();
+        return colLower.includes('program');
+    });
+    
+    let programs = new Set();
+    if (programCols.length > 0) {
+        validData.forEach(row => {
+            programCols.forEach(col => {
+                const program = row[col];
+                if (program && typeof program === 'string' && program !== 'Program' && program !== 'program') {
+                    programs.add(program);
+                }
+            });
+        });
+    } else if (weekCols.length > 0) {
+        // Check if week columns contain program names
+        weekCols.forEach(col => {
+            validData.slice(0, 5).forEach(row => {
+                const val = row[col];
+                if (val && typeof val === 'string' && isNaN(val)) {
+                    programs.add(val);
+                }
+            });
+        });
+    }
+    
+    document.getElementById('activeProgramsValue').textContent = programs.size || 'N/A';
+    document.getElementById('programsList').textContent = programs.size > 0 ? Array.from(programs).join(', ') : '';
+    
+    // Count active providers
+    const activeProviders = validData.length;
+    document.getElementById('activeProvidersValue').textContent = activeProviders;
+}
+
+// Quick Filters
+let currentQuickFilter = 'all';
+
+function applyQuickFilter(filterType) {
+    console.log('Applying quick filter:', filterType);
+    currentQuickFilter = filterType;
+    
+    // Update button states
+    document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-filter') === filterType) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Apply filter to current data
+    const currentTab = document.querySelector('.tab.active');
+    if (!currentTab || !currentData) return;
+    
+    const tabName = currentTab.textContent.trim();
+    const columns = currentData.length > 0 ? Object.keys(currentData[0]) : [];
+    
+    let filteredData = [...currentData];
+    
+    // Filter out header rows
+    filteredData = filteredData.filter(row => {
+        const firstCol = row[columns[0]];
+        return firstCol && 
+               firstCol !== 'Provider' && 
+               firstCol !== 'provider' &&
+               !String(firstCol).toLowerCase().includes('total');
+    });
+    
+    // Get week columns for analysis
+    const weekCols = columns.filter(col => {
+        const colStr = String(col);
+        return colStr.match(/week of \d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed'));
+    });
+    
+    if (weekCols.length === 0) {
+        renderTable(filteredData);
+        return;
+    }
+    
+    const currentWeekCol = weekCols[weekCols.length - 1];
+    const prevWeekCol = weekCols.length > 1 ? weekCols[weekCols.length - 2] : null;
+    
+    switch (filterType) {
+        case 'active':
+            // Show only providers with visits this week
+            filteredData = filteredData.filter(row => {
+                const visits = parseFloat(row[currentWeekCol]);
+                return !isNaN(visits) && visits > 0;
+            });
+            break;
+            
+        case 'top10':
+            // Show top 10 performers
+            filteredData.sort((a, b) => {
+                const aVal = parseFloat(a[currentWeekCol]) || 0;
+                const bVal = parseFloat(b[currentWeekCol]) || 0;
+                return bVal - aVal;
+            });
+            filteredData = filteredData.slice(0, 10);
+            break;
+            
+        case 'growth':
+            // Show only providers with positive growth
+            if (prevWeekCol) {
+                filteredData = filteredData.filter(row => {
+                    const current = parseFloat(row[currentWeekCol]) || 0;
+                    const previous = parseFloat(row[prevWeekCol]) || 0;
+                    return current > previous;
+                });
+            }
+            break;
+            
+        case 'declining':
+            // Show only providers with declining visits
+            if (prevWeekCol) {
+                filteredData = filteredData.filter(row => {
+                    const current = parseFloat(row[currentWeekCol]) || 0;
+                    const previous = parseFloat(row[prevWeekCol]) || 0;
+                    return current < previous && previous > 0;
+                });
+            }
+            break;
+            
+        case 'all':
+        default:
+            // Show all data (already filtered)
+            break;
+    }
+    
+    renderTable(filteredData);
 }
 
 // Helper functions for new features

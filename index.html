@@ -60,6 +60,61 @@
             <!-- Charts will be inserted here -->
         </div>
 
+        <!-- Summary Cards -->
+        <div class="summary-cards" id="summaryCards">
+            <div class="summary-card">
+                <div class="card-icon">📊</div>
+                <div class="card-content">
+                    <div class="card-label">Total Visits</div>
+                    <div class="card-value" id="totalVisitsValue">-</div>
+                    <div class="card-change" id="totalVisitsChange"></div>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">🏆</div>
+                <div class="card-content">
+                    <div class="card-label">Top Performer</div>
+                    <div class="card-value" id="topPerformerValue">-</div>
+                    <div class="card-subtext" id="topPerformerVisits"></div>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">🎯</div>
+                <div class="card-content">
+                    <div class="card-label">Active Programs</div>
+                    <div class="card-value" id="activeProgramsValue">-</div>
+                    <div class="card-subtext" id="programsList"></div>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="card-icon">👥</div>
+                <div class="card-content">
+                    <div class="card-label">Active Providers</div>
+                    <div class="card-value" id="activeProvidersValue">-</div>
+                    <div class="card-change" id="activeProvidersChange"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Filters -->
+        <div class="quick-filters" id="quickFilters">
+            <button class="quick-filter-btn active" data-filter="all" onclick="applyQuickFilter('all')">
+                📋 All Data
+            </button>
+            <button class="quick-filter-btn" data-filter="active" onclick="applyQuickFilter('active')">
+                ✅ Active Only
+            </button>
+            <button class="quick-filter-btn" data-filter="top10" onclick="applyQuickFilter('top10')">
+                🌟 Top 10
+            </button>
+            <button class="quick-filter-btn" data-filter="growth" onclick="applyQuickFilter('growth')">
+                📈 Growth
+            </button>
+            <button class="quick-filter-btn" data-filter="declining" onclick="applyQuickFilter('declining')">
+                ⚠️ Declining
+            </button>
+        </div>
+
         <div class="controls">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="🔍 Search across all columns..." />
