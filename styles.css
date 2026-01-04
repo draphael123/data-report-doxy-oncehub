@@ -1775,12 +1775,13 @@ tfoot.sticky-summary th:first-child {
 
 .home-footer p {
     margin: 8px 0;
-    color: var(--text-secondary);
+    color: #f1f5f9;
     font-size: 1rem;
 }
 
 .home-footer strong {
-    color: var(--text-primary);
+    color: white;
+    font-weight: 700;
 }
 
 .no-summary-data {
@@ -2800,12 +2801,18 @@ td[title]:hover,
 footer {
     text-align: center;
     padding: 30px;
-    color: rgba(255, 255, 255, 0.9);
+    color: white;
     font-size: 0.95rem;
+    font-weight: 500;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+footer p,
+footer span {
+    color: white;
 }
 
 #lastUpdate {
