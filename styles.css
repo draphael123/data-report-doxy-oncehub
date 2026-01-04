@@ -186,6 +186,17 @@ header h1 {
     margin-bottom: 20px;
 }
 
+.performers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.performers-list {
+    margin-top: 16px;
+}
+
 .analytics-card {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
     padding: 28px;
@@ -349,6 +360,14 @@ header h1 {
     right: 0;
     height: 4px;
     background: linear-gradient(90deg, var(--accent-color), var(--accent-pink), var(--primary-color));
+}
+
+.top-performers.positive::before {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.top-performers.warning::before {
+    background: linear-gradient(90deg, #f59e0b, #ef4444);
 }
 
 .top-performers h3 {
@@ -1044,6 +1063,10 @@ footer {
     }
     
     .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .performers-grid {
         grid-template-columns: 1fr;
     }
     

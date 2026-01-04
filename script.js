@@ -671,59 +671,117 @@ function generateGustoHoursAnalytics(data, columns) {
 
 // Analytics for Doxy Over 20 Minutes
 function generateDoxy20MinAnalytics(data, columns) {
-    const percentCol = columns.find(col => 
-        col.toLowerCase().includes('percent') || col.toLowerCase().includes('%')
-    );
-    
-    if (!percentCol) return '';
-    
-    // Calculate average percentage
-    const validData = data.filter(row => {
-        const val = parseFloat(row[percentCol]);
-        return !isNaN(val) && val > 0;
+    // Find provider column and week columns with visit counts
+    const providerCol = columns.find(col => col.toLowerCase().includes('provider') || col === 'Unnamed: 0');
+    const weekCols = columns.filter(col => {
+        const colStr = String(col);
+        return colStr.match(/week of \d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed'));
     });
     
-    const avgPercent = validData.reduce((sum, row) => {
-        return sum + parseFloat(row[percentCol] || 0);
-    }, 0) / validData.length;
+    if (!providerCol || weekCols.length < 2) return '';
     
-    // Find highest and lowest
-    const sorted = [...validData].sort((a, b) => 
-        parseFloat(b[percentCol]) - parseFloat(a[percentCol])
-    );
+    // Get current and previous week
+    const currentWeekCol = weekCols[weekCols.length - 1];
+    const prevWeekCol = weekCols[weekCols.length - 2];
     
-    const providerCol = columns.find(col => col.toLowerCase().includes('provider') || col === 'Unnamed: 0');
-    const highest = sorted[0];
-    const lowest = sorted[sorted.length - 1];
+    // Filter valid data (exclude headers and totals)
+    const validData = data.filter(row => {
+        const provider = row[providerCol];
+        return provider && 
+               provider !== 'Provider' && 
+               !String(provider).toLowerCase().includes('total');
+    });
+    
+    // Calculate changes and sort
+    const providerAnalysis = validData.map(row => {
+        const provider = row[providerCol];
+        const currentVisits = parseFloat(row[currentWeekCol]) || 0;
+        const prevVisits = parseFloat(row[prevWeekCol]) || 0;
+        const change = currentVisits - prevVisits;
+        const changePercent = prevVisits > 0 ? ((change / prevVisits) * 100) : 0;
+        
+        return {
+            provider,
+            currentVisits,
+            prevVisits,
+            change,
+            changePercent
+        };
+    });
+    
+    // Best performers: Fewest visits over 20 min (most efficient)
+    const bestPerformers = [...providerAnalysis]
+        .filter(p => p.currentVisits > 0 || p.prevVisits > 0) // Has some data
+        .sort((a, b) => a.currentVisits - b.currentVisits)
+        .slice(0, 5);
+    
+    // Needs attention: Most visits over 20 min (least efficient)
+    const needsAttention = [...providerAnalysis]
+        .filter(p => p.currentVisits > 0)
+        .sort((a, b) => b.currentVisits - a.currentVisits)
+        .slice(0, 5);
+    
+    // Calculate totals
+    const totalCurrent = providerAnalysis.reduce((sum, p) => sum + p.currentVisits, 0);
+    const totalPrev = providerAnalysis.reduce((sum, p) => sum + p.prevVisits, 0);
+    const totalChange = totalCurrent - totalPrev;
+    const totalChangePercent = totalPrev > 0 ? ((totalChange / totalPrev) * 100) : 0;
     
     return `
         <div class="analytics-summary">
-            <h3>⏱️ Visit Duration Analysis</h3>
-            <p>Percentage of visits exceeding 20 minutes - quality time indicator</p>
+            <h3>⏱️ Visits Over 20 Minutes - Efficiency Tracking</h3>
+            <p>Lower numbers indicate more efficient visits. Track week-over-week changes.</p>
         </div>
         
         <div class="analytics-grid">
-            <div class="analytics-card">
-                <h3>Average % Over 20 Min</h3>
-                <div class="analytics-value">${avgPercent.toFixed(1)}%</div>
-                <div class="analytics-change neutral">
-                    <span>Across ${validData.length} providers</span>
+            <div class="analytics-card ${totalChange < 0 ? 'positive' : totalChange > 0 ? 'negative' : ''}">
+                <h3>Total This Week</h3>
+                <div class="analytics-value">${totalCurrent}</div>
+                <div class="analytics-change ${totalChange < 0 ? 'positive' : totalChange > 0 ? 'negative' : 'neutral'}">
+                    <span>${totalChange >= 0 ? '+' : ''}${totalChange} (${totalChangePercent >= 0 ? '+' : ''}${totalChangePercent.toFixed(1)}%)</span>
+                    <span>vs last week: ${totalPrev}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="performers-grid">
+            <div class="top-performers positive">
+                <h3>✅ Most Efficient (Fewest Visits > 20 min)</h3>
+                <div class="performers-list">
+                    ${bestPerformers.map((p, index) => `
+                        <div class="performer-item">
+                            <span class="rank">#${index + 1}</span>
+                            <span class="provider-name">${escapeHtml(p.provider)}</span>
+                            <span class="performer-stats">
+                                <strong>${p.currentVisits}</strong> visits
+                                ${p.change !== 0 ? `
+                                    <span class="${p.change < 0 ? 'positive' : p.change > 0 ? 'negative' : 'neutral'}">
+                                        ${p.change >= 0 ? '+' : ''}${p.change}
+                                    </span>
+                                ` : ''}
+                            </span>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
             
-            <div class="analytics-card positive">
-                <h3>Highest Rate</h3>
-                <div class="analytics-value">${parseFloat(highest[percentCol]).toFixed(1)}%</div>
-                <div class="analytics-change neutral">
-                    <span>${highest[providerCol]}</span>
-                </div>
-            </div>
-            
-            <div class="analytics-card">
-                <h3>Lowest Rate</h3>
-                <div class="analytics-value">${parseFloat(lowest[percentCol]).toFixed(1)}%</div>
-                <div class="analytics-change neutral">
-                    <span>${lowest[providerCol]}</span>
+            <div class="top-performers warning">
+                <h3>⚠️ Needs Attention (Most Visits > 20 min)</h3>
+                <div class="performers-list">
+                    ${needsAttention.map((p, index) => `
+                        <div class="performer-item">
+                            <span class="rank">#${index + 1}</span>
+                            <span class="provider-name">${escapeHtml(p.provider)}</span>
+                            <span class="performer-stats">
+                                <strong>${p.currentVisits}</strong> visits
+                                ${p.change !== 0 ? `
+                                    <span class="${p.change < 0 ? 'positive' : p.change > 0 ? 'negative' : 'neutral'}">
+                                        ${p.change >= 0 ? '+' : ''}${p.change}
+                                    </span>
+                                ` : ''}
+                            </span>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
         </div>
