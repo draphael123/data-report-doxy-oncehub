@@ -9,40 +9,103 @@ let activeFilters = {};
 
 // Initialize the app
 async function init() {
+    console.log('Initializing dashboard...');
+    
+    // Show loading message
+    const tableWrapper = document.getElementById('tableWrapper');
+    if (tableWrapper) {
+        tableWrapper.innerHTML = '<p class="loading">Loading data from Excel file...</p>';
+    }
+    
     try {
         // Load data directly from Excel file
         await loadExcelFile();
         
+        console.log('Data loaded, total tabs:', Object.keys(allData).length);
+        
         // Set last update time
-        document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+        const lastUpdateEl = document.getElementById('lastUpdate');
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent = new Date().toLocaleString();
+        }
         
         // Setup event listeners
         setupTabListeners();
         setupSearchListener();
         
         // Load first tab
+        console.log('Loading first tab:', currentTab);
         loadTab(currentTab);
+        
+        console.log('Dashboard initialized successfully');
+        
     } catch (error) {
-        console.error('Error loading data:', error);
-        document.getElementById('tableWrapper').innerHTML = 
-            '<p class="no-results">Error loading data. Please check the console.</p>';
+        console.error('Error initializing dashboard:', error);
+        const tableWrapper = document.getElementById('tableWrapper');
+        if (tableWrapper) {
+            tableWrapper.innerHTML = `
+                <div class="no-results">
+                    <h3>⚠️ Error Loading Data</h3>
+                    <p>${error.message}</p>
+                    <p>Please check the browser console for details.</p>
+                    <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; cursor: pointer;">
+                        🔄 Reload Page
+                    </button>
+                </div>
+            `;
+        }
     }
+}
+
+// Wait for XLSX library to load
+function waitForXLSX() {
+    return new Promise((resolve) => {
+        if (window.XLSX) {
+            resolve();
+        } else {
+            const checkInterval = setInterval(() => {
+                if (window.XLSX) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 100);
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                resolve();
+            }, 5000);
+        }
+    });
 }
 
 // Load data directly from Excel file
 async function loadExcelFile() {
     try {
+        // Wait for XLSX library to be available
+        await waitForXLSX();
+        
         // Check if XLSX library is loaded
         if (!window.XLSX) {
-            throw new Error('Excel library not loaded. Please refresh the page.');
+            console.warn('XLSX library not available, falling back to JSON');
+            throw new Error('Excel library not loaded');
         }
+        
+        console.log('Fetching Excel file...');
         
         // Fetch the Excel file
         const response = await fetch('Oncehub_Doxy Report (in use) (3).xlsx');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const arrayBuffer = await response.arrayBuffer();
+        console.log('Excel file loaded, size:', arrayBuffer.byteLength);
         
         // Parse Excel file
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        console.log('Workbook parsed, sheets:', workbook.SheetNames);
         
         // Convert each sheet to JSON
         allData = {};
@@ -50,9 +113,23 @@ async function loadExcelFile() {
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
                 raw: false,
-                defval: null
+                defval: null,
+                header: 1 // Get as array first
             });
-            allData[sheetName] = jsonData;
+            
+            // Convert array format to object format with headers
+            if (jsonData.length > 0) {
+                const headers = jsonData[0];
+                const data = jsonData.slice(1).map(row => {
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header || `Unnamed: ${index}`] = row[index] !== undefined ? row[index] : null;
+                    });
+                    return obj;
+                });
+                allData[sheetName] = data;
+                console.log(`Sheet "${sheetName}": ${data.length} rows`);
+            }
         });
         
         console.log('Excel data loaded successfully:', Object.keys(allData));
@@ -65,8 +142,14 @@ async function loadExcelFile() {
         console.error('Error loading Excel file:', error);
         // Fallback to data.json
         console.log('Attempting to load from data.json as fallback...');
-        const response = await fetch('data.json');
-        allData = await response.json();
+        try {
+            const response = await fetch('data.json');
+            allData = await response.json();
+            console.log('Fallback data.json loaded successfully');
+        } catch (jsonError) {
+            console.error('Failed to load fallback data.json:', jsonError);
+            throw jsonError;
+        }
     }
 }
 
