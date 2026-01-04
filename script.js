@@ -5,6 +5,7 @@ let currentData = [];
 let filteredData = [];
 let sortColumn = null;
 let sortDirection = 'asc';
+let activeFilters = {};
 
 // Initialize the app
 async function init() {

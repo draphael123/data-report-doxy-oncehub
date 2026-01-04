@@ -5,13 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Doxy & OnceHub Reports Dashboard</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Core Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.1/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>📊 Doxy & OnceHub Reports Dashboard</h1>
-            <p class="subtitle">Interactive Provider Performance Reports</p>
+            <div class="header-content">
+                <div>
+                    <h1>📊 Doxy & OnceHub Reports Dashboard</h1>
+                    <p class="subtitle">Interactive Provider Performance Reports</p>
+                </div>
+                <div class="header-controls">
+                    <button id="themeToggle" class="icon-button" title="Toggle Dark Mode (D)">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                    <select id="themeSelect" class="theme-select" title="Choose Theme">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="midnight">Midnight</option>
+                        <option value="ocean">Ocean</option>
+                        <option value="sunset">Sunset</option>
+                    </select>
+                    <button id="exportBtn" class="icon-button" title="Export Data (E)">📥</button>
+                    <button id="helpBtn" class="icon-button" title="Help (?)">❓</button>
+                    <button id="settingsBtn" class="icon-button" title="Settings (S)">⚙️</button>
+                </div>
+            </div>
         </header>
 
         <nav class="tabs">
@@ -38,8 +64,27 @@
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="🔍 Search across all columns..." />
             </div>
+            <button class="filter-toggle-btn" onclick="toggleAdvancedFilters()">
+                <span>🔍 Filters</span>
+            </button>
             <div class="info">
                 <span id="rowCount">Loading...</span>
+            </div>
+        </div>
+
+        <div class="advanced-filters" id="advancedFilters">
+            <div class="filters-header">
+                <h3>Advanced Filters</h3>
+                <div class="filters-actions">
+                    <button onclick="clearAllFilters()" class="filter-btn">Clear All</button>
+                    <button onclick="saveFilterPreset()" class="filter-btn">Save Preset</button>
+                    <select id="filterPresets" onchange="loadFilterPreset(this.value)">
+                        <option value="">Load Preset...</option>
+                    </select>
+                </div>
+            </div>
+            <div id="filterOptions" class="filter-options">
+                <!-- Dynamic filter options will be inserted here -->
             </div>
         </div>
 
@@ -54,6 +99,149 @@
         </footer>
     </div>
 
+    <!-- Export Modal -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📥 Export Data</h2>
+                <button class="close-btn" onclick="closeModal('exportModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-options">
+                    <button class="export-btn" onclick="ExportManager.exportToPDF()">
+                        <span class="export-icon">📄</span>
+                        <span class="export-label">Export to PDF</span>
+                        <span class="export-desc">Full report with charts</span>
+                    </button>
+                    <button class="export-btn" onclick="ExportManager.exportToExcel()">
+                        <span class="export-icon">📊</span>
+                        <span class="export-label">Export to Excel</span>
+                        <span class="export-desc">Spreadsheet format</span>
+                    </button>
+                    <button class="export-btn" onclick="ExportManager.exportToCSV()">
+                        <span class="export-icon">📋</span>
+                        <span class="export-label">Export to CSV</span>
+                        <span class="export-desc">Comma-separated values</span>
+                    </button>
+                    <button class="export-btn" onclick="ExportManager.exportCharts()">
+                        <span class="export-icon">📈</span>
+                        <span class="export-label">Export Charts</span>
+                        <span class="export-desc">Save as images</span>
+                    </button>
+                    <button class="export-btn" onclick="ExportManager.copyToClipboard()">
+                        <span class="export-icon">📋</span>
+                        <span class="export-label">Copy to Clipboard</span>
+                        <span class="export-desc">Quick data copy</span>
+                    </button>
+                    <button class="export-btn" onclick="window.print()">
+                        <span class="export-icon">🖨️</span>
+                        <span class="export-label">Print</span>
+                        <span class="export-desc">Print-optimized view</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Settings</h2>
+                <button class="close-btn" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>Display Density</h3>
+                    <div class="radio-group">
+                        <label><input type="radio" name="density" value="compact" onchange="SettingsManager.setDensity('compact')"> Compact</label>
+                        <label><input type="radio" name="density" value="comfortable" checked onchange="SettingsManager.setDensity('comfortable')"> Comfortable</label>
+                        <label><input type="radio" name="density" value="spacious" onchange="SettingsManager.setDensity('spacious')"> Spacious</label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Animations</h3>
+                    <label class="switch">
+                        <input type="checkbox" id="animationsToggle" checked onchange="SettingsManager.toggleAnimations(this.checked)">
+                        <span class="slider"></span>
+                        Enable animations
+                    </label>
+                </div>
+                <div class="settings-section">
+                    <h3>Auto-refresh</h3>
+                    <label class="switch">
+                        <input type="checkbox" id="autoRefreshToggle" onchange="SettingsManager.toggleAutoRefresh(this.checked)">
+                        <span class="slider"></span>
+                        Auto-refresh data
+                    </label>
+                </div>
+                <div class="settings-section">
+                    <h3>Rows per page</h3>
+                    <select id="rowsPerPage" onchange="SettingsManager.setRowsPerPage(this.value)">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="250">250</option>
+                        <option value="-1">All</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>❓ Help & Keyboard Shortcuts</h2>
+                <button class="close-btn" onclick="closeModal('helpModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <h3>⌨️ Keyboard Shortcuts</h3>
+                    <div class="shortcuts-grid">
+                        <div class="shortcut-item"><kbd>D</kbd> Toggle Dark Mode</div>
+                        <div class="shortcut-item"><kbd>E</kbd> Export Data</div>
+                        <div class="shortcut-item"><kbd>S</kbd> Settings</div>
+                        <div class="shortcut-item"><kbd>?</kbd> Help</div>
+                        <div class="shortcut-item"><kbd>/</kbd> Focus Search</div>
+                        <div class="shortcut-item"><kbd>Esc</kbd> Close Modals</div>
+                        <div class="shortcut-item"><kbd>1-9</kbd> Switch Tabs</div>
+                        <div class="shortcut-item"><kbd>Ctrl/Cmd + P</kbd> Print</div>
+                    </div>
+                </div>
+                <div class="help-section">
+                    <h3>🎨 Features</h3>
+                    <ul class="feature-list">
+                        <li><strong>Search:</strong> Type to filter across all columns</li>
+                        <li><strong>Sort:</strong> Click column headers to sort</li>
+                        <li><strong>Charts:</strong> Hover for interactive tooltips</li>
+                        <li><strong>Export:</strong> Download data in multiple formats</li>
+                        <li><strong>Themes:</strong> Choose from 5 different themes</li>
+                        <li><strong>Dark Mode:</strong> Easy on the eyes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <div class="fab-container">
+        <button class="fab" id="fabMain" title="Quick Actions">
+            <span>⚡</span>
+        </button>
+        <div class="fab-menu" id="fabMenu">
+            <button class="fab-item" onclick="ExportManager.exportToExcel()" title="Export to Excel">📊</button>
+            <button class="fab-item" onclick="ExportManager.exportToPDF()" title="Export to PDF">📄</button>
+            <button class="fab-item" onclick="ExportManager.copyToClipboard()" title="Copy Data">📋</button>
+            <button class="fab-item" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Scroll to Top">⬆️</button>
+        </div>
+    </div>
+
+    <script src="themes.js"></script>
+    <script src="export.js"></script>
+    <script src="settings.js"></script>
+    <script src="keyboard.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
