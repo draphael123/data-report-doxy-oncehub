@@ -31,7 +31,6 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-read_excel.py
 
 .vercel
 
