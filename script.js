@@ -1435,17 +1435,35 @@ function closeInsights() {
 function renderHomePage() {
     console.log('Rendering Home page...');
     
-    // Hide elements not needed for this view
-    document.getElementById('analyticsSection').classList.remove('visible');
-    document.getElementById('chartsSection').innerHTML = '';
-    document.getElementById('weeklyAveragesSection').style.display = 'none';
-    document.getElementById('monthlySummary').style.display = 'none';
-    document.getElementById('summaryCardsSection').style.display = 'none';
-    document.getElementById('insightsPanel').style.display = 'none';
-    document.getElementById('quickFiltersSection').style.display = 'none';
+    // Safely hide elements not needed for this view (with null checks)
+    const analyticsSection = document.getElementById('analyticsSection');
+    if (analyticsSection) analyticsSection.classList.remove('visible');
+    
+    const chartsSection = document.getElementById('chartsSection');
+    if (chartsSection) chartsSection.innerHTML = '';
+    
+    const weeklyAveragesSection = document.getElementById('weeklyAveragesSection');
+    if (weeklyAveragesSection) weeklyAveragesSection.style.display = 'none';
+    
+    const monthlySummary = document.getElementById('monthlySummary');
+    if (monthlySummary) monthlySummary.style.display = 'none';
+    
+    const summaryCardsSection = document.getElementById('summaryCardsSection');
+    if (summaryCardsSection) summaryCardsSection.style.display = 'none';
+    
+    const insightsPanel = document.getElementById('insightsPanel');
+    if (insightsPanel) insightsPanel.style.display = 'none';
+    
+    const quickFiltersSection = document.getElementById('quickFiltersSection');
+    if (quickFiltersSection) quickFiltersSection.style.display = 'none';
     
     // Calculate weekly summary across all data sources
-    const weeklySummary = calculateWeeklySummary();
+    let weeklySummary = [];
+    try {
+        weeklySummary = calculateWeeklySummary();
+    } catch (error) {
+        console.error('Error calculating weekly summary:', error);
+    }
     
     // Build home page HTML
     let html = `
@@ -1460,7 +1478,7 @@ function renderHomePage() {
                 <p class="section-subtitle">Comparing current week vs. previous week across all metrics</p>
                 
                 <div class="summary-grid">
-                    ${weeklySummary.map(item => `
+                    ${weeklySummary.length > 0 ? weeklySummary.map(item => `
                         <div class="summary-card ${item.change >= 0 ? 'positive' : 'negative'}">
                             <div class="summary-icon">${item.icon}</div>
                             <div class="summary-content">
@@ -1477,7 +1495,12 @@ function renderHomePage() {
                                 </div>
                             </div>
                         </div>
-                    `).join('')}
+                    `).join('') : `
+                        <div class="no-summary-data">
+                            <p>📊 Loading weekly summary data...</p>
+                            <p class="text-secondary">Data will appear here once loaded</p>
+                        </div>
+                    `}
                 </div>
             </div>
             
@@ -1635,6 +1658,12 @@ function renderHomePage() {
 function calculateWeeklySummary() {
     const summary = [];
     
+    // Check if allData exists
+    if (!allData || Object.keys(allData).length === 0) {
+        console.warn('No data available for weekly summary');
+        return summary;
+    }
+    
     // Data sources to analyze
     const sources = [
         { name: 'Doxy Visits', icon: '🏥', label: 'Doxy Visits' },
@@ -1644,7 +1673,10 @@ function calculateWeeklySummary() {
     ];
     
     sources.forEach(source => {
-        if (!allData[source.name]) return;
+        if (!allData[source.name]) {
+            console.log(`No data found for ${source.name}`);
+            return;
+        }
         
         const data = allData[source.name].filter(row => {
             const firstValue = Object.values(row)[0];

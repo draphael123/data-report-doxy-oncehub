@@ -1783,6 +1783,22 @@ tfoot.sticky-summary th:first-child {
     color: var(--text-primary);
 }
 
+.no-summary-data {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-secondary);
+}
+
+.no-summary-data p {
+    font-size: 1.2rem;
+    margin: 12px 0;
+}
+
+.no-summary-data .text-secondary {
+    font-size: 1rem;
+    opacity: 0.7;
+}
+
 /* Dark mode for Home Page */
 .dark-mode .home-hero,
 .dark-mode .summary-card,
