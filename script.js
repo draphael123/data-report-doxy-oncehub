@@ -1241,11 +1241,23 @@ function initProgramCharts(data, columns) {
         return colLower.includes('program');
     });
     
-    // If no explicit "program" columns, check week columns (for Program Grouped tab)
+    // If no explicit "program" columns, check if first row has "Program" values
+    // This handles cases like "Unnamed: 1" where the header value is "Program"
+    if (programCols.length === 0 && data.length > 0) {
+        const firstRow = data[0];
+        programCols = columns.filter(col => {
+            const value = firstRow[col];
+            return value && String(value).toLowerCase() === 'program';
+        });
+        console.log('Found program columns by header value:', programCols);
+    }
+    
+    // If still no columns, check week columns (for Program Grouped tab)
     if (programCols.length === 0) {
         programCols = columns.filter(col => {
             return /week of \d+\/\d+/i.test(String(col)) || col.match(/\d+\/\d+/);
         });
+        console.log('Using week columns as program columns:', programCols);
     }
     
     console.log('Program chart - programCols:', programCols);
