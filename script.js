@@ -20,14 +20,28 @@ async function init() {
     try {
         // Load data from JSON file (simpler and more reliable)
         console.log('Fetching data.json...');
-        const response = await fetch('data.json');
+        
+        // Add timeout to fetch
+        const fetchWithTimeout = (url, timeout = 10000) => {
+            return Promise.race([
+                fetch(url),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Fetch timeout')), timeout)
+                )
+            ]);
+        };
+        
+        const response = await fetchWithTimeout('data.json');
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
+        console.log('Response received, parsing JSON...');
         allData = await response.json();
-        console.log('Data loaded successfully, tabs:', Object.keys(allData));
+        console.log('Data loaded successfully!');
+        console.log('Tabs available:', Object.keys(allData));
+        console.log('First tab data rows:', allData[Object.keys(allData)[0]]?.length);
         
         if (!allData || Object.keys(allData).length === 0) {
             throw new Error('No data found in data.json');

@@ -531,12 +531,12 @@ header h1 {
     box-shadow: var(--shadow-lg);
     backdrop-filter: blur(10px);
     border: 2px solid rgba(255, 255, 255, 0.5);
-    display: none;
+    display: none !important;
     animation: slideDown 0.3s ease;
 }
 
 .advanced-filters.visible {
-    display: block;
+    display: block !important;
 }
 
 @keyframes slideDown {
@@ -919,7 +919,7 @@ footer {
 
 /* Modals */
 .modal {
-    display: none;
+    display: none !important; /* Force hidden by default */
     position: fixed;
     z-index: 9999;
     left: 0;
@@ -931,6 +931,10 @@ footer {
     align-items: center;
     justify-content: center;
     animation: fadeIn 0.3s ease;
+}
+
+.modal.show {
+    display: flex !important; /* Show when explicitly opened */
 }
 
 @keyframes fadeIn {

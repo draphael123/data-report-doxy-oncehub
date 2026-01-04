@@ -224,12 +224,24 @@ const ExportManager = {
 
 // Modal management
 function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+    }
 }
 
 function openModal(modalId) {
-    document.getElementById(modalId).style.display = 'flex';
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+    }
 }
+
+// Make functions globally available
+window.closeModal = closeModal;
+window.openModal = openModal;
 
 // Notification system
 function showNotification(message, type = 'success') {
