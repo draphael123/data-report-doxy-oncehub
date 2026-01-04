@@ -236,6 +236,12 @@ function loadTab(tabName) {
     console.log('allData keys:', Object.keys(allData));
     console.log('Tab exists in allData:', tabName in allData);
     
+    // Special handling for Weekly Changes tab
+    if (tabName === 'Weekly Changes') {
+        renderWeeklyChanges();
+        return;
+    }
+    
     currentData = allData[tabName] || [];
     
     // Filter out "Total" rows and header rows
@@ -1417,6 +1423,183 @@ function generateSmartInsights(data, columns, tabName) {
 
 function closeInsights() {
     document.getElementById('insightsPanel').style.display = 'none';
+}
+
+// Render Weekly Changes Analysis Tab
+function renderWeeklyChanges() {
+    console.log('Rendering Weekly Changes tab...');
+    
+    // Hide elements not needed for this view
+    document.getElementById('analyticsSection').classList.remove('visible');
+    document.getElementById('chartsSection').innerHTML = '';
+    document.getElementById('weeklyAveragesSection').style.display = 'none';
+    document.getElementById('monthlySummary').style.display = 'none';
+    document.getElementById('summaryCardsSection').style.display = 'none';
+    document.getElementById('insightsPanel').style.display = 'none';
+    document.getElementById('quickFiltersSection').style.display = 'none';
+    
+    // Analyze all data sources for week-over-week changes
+    const allChanges = [];
+    
+    // Data sources to analyze
+    const sourcesToAnalyze = [
+        'Doxy Visits',
+        'Gusto Hours ',
+        'Doxy - Over 20 minutes',
+        'Oncehub Report - Number of Visi'
+    ];
+    
+    sourcesToAnalyze.forEach(sourceName => {
+        if (!allData[sourceName]) return;
+        
+        const data = allData[sourceName].filter(row => {
+            const firstValue = Object.values(row)[0];
+            return firstValue && 
+                   firstValue !== 'Total' && 
+                   firstValue !== 'Provider' &&
+                   !String(firstValue).toLowerCase().includes('total');
+        });
+        
+        if (data.length === 0) return;
+        
+        const columns = Object.keys(data[0]);
+        const providerCol = columns[0];
+        
+        // Find week columns
+        const weekCols = columns.filter(col => {
+            const colStr = String(col);
+            return colStr.match(/week\s+of\s+\d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && colStr.includes('-') && !colStr.toLowerCase().includes('unnamed'));
+        });
+        
+        if (weekCols.length < 2) return;
+        
+        // Calculate week-over-week changes for each provider
+        data.forEach(row => {
+            const provider = row[providerCol];
+            if (!provider) return;
+            
+            // Compare consecutive weeks
+            for (let i = 1; i < weekCols.length; i++) {
+                const currentWeek = weekCols[i];
+                const previousWeek = weekCols[i - 1];
+                
+                const currentValue = parseFloat(row[currentWeek]);
+                const previousValue = parseFloat(row[previousWeek]);
+                
+                if (isNaN(currentValue) || isNaN(previousValue) || previousValue === 0) continue;
+                
+                const change = currentValue - previousValue;
+                const percentChange = (change / previousValue) * 100;
+                
+                allChanges.push({
+                    source: sourceName,
+                    provider: provider,
+                    previousWeek: cleanColumnName(previousWeek),
+                    currentWeek: cleanColumnName(currentWeek),
+                    previousValue: previousValue,
+                    currentValue: currentValue,
+                    change: change,
+                    percentChange: percentChange,
+                    absPercentChange: Math.abs(percentChange)
+                });
+            }
+        });
+    });
+    
+    // Sort by absolute percent change
+    allChanges.sort((a, b) => b.absPercentChange - a.absPercentChange);
+    
+    // Get top increases and decreases
+    const topIncreases = allChanges.filter(c => c.change > 0).slice(0, 20);
+    const topDecreases = allChanges.filter(c => c.change < 0).slice(0, 20);
+    
+    // Build HTML
+    let html = `
+        <div class="weekly-changes-container">
+            <div class="weekly-changes-header">
+                <h2>📊 Weekly Changes Analysis</h2>
+                <p>Most significant week-over-week changes across all data sources</p>
+            </div>
+            
+            <div class="changes-summary">
+                <div class="summary-stat">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-value">${topIncreases.length}</div>
+                    <div class="stat-label">Significant Increases</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="stat-icon">📉</div>
+                    <div class="stat-value">${topDecreases.length}</div>
+                    <div class="stat-label">Significant Decreases</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="stat-icon">🔄</div>
+                    <div class="stat-value">${allChanges.length}</div>
+                    <div class="stat-label">Total Changes Tracked</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-value">${sourcesToAnalyze.length}</div>
+                    <div class="stat-label">Data Sources Analyzed</div>
+                </div>
+            </div>
+            
+            <div class="changes-grid">
+                <div class="changes-section increases">
+                    <h3>📈 Top 20 Increases</h3>
+                    <div class="changes-list">
+                        ${topIncreases.map((change, index) => `
+                            <div class="change-item increase">
+                                <div class="change-rank">${index + 1}</div>
+                                <div class="change-details">
+                                    <div class="change-provider">${escapeHtml(change.provider)}</div>
+                                    <div class="change-source">${change.source}</div>
+                                    <div class="change-period">${change.previousWeek} → ${change.currentWeek}</div>
+                                </div>
+                                <div class="change-values">
+                                    <div class="change-arrow">↑</div>
+                                    <div class="change-numbers">
+                                        <div class="change-percent">+${change.percentChange.toFixed(1)}%</div>
+                                        <div class="change-absolute">${change.previousValue.toFixed(1)} → ${change.currentValue.toFixed(1)}</div>
+                                        <div class="change-diff">+${change.change.toFixed(1)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="changes-section decreases">
+                    <h3>📉 Top 20 Decreases</h3>
+                    <div class="changes-list">
+                        ${topDecreases.map((change, index) => `
+                            <div class="change-item decrease">
+                                <div class="change-rank">${index + 1}</div>
+                                <div class="change-details">
+                                    <div class="change-provider">${escapeHtml(change.provider)}</div>
+                                    <div class="change-source">${change.source}</div>
+                                    <div class="change-period">${change.previousWeek} → ${change.currentWeek}</div>
+                                </div>
+                                <div class="change-values">
+                                    <div class="change-arrow">↓</div>
+                                    <div class="change-numbers">
+                                        <div class="change-percent">${change.percentChange.toFixed(1)}%</div>
+                                        <div class="change-absolute">${change.previousValue.toFixed(1)} → ${change.currentValue.toFixed(1)}</div>
+                                        <div class="change-diff">${change.change.toFixed(1)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const tableWrapper = document.getElementById('tableWrapper');
+    if (tableWrapper) {
+        tableWrapper.innerHTML = html;
+    }
 }
 
 // Helper function to calculate standard deviation
