@@ -1008,6 +1008,106 @@ function initProgramCharts(data, columns) {
     }
 }
 
+// Helper functions for new features
+function toggleAdvancedFilters() {
+    const filtersPanel = document.getElementById('advancedFilters');
+    if (filtersPanel) {
+        filtersPanel.classList.toggle('visible');
+        if (filtersPanel.classList.contains('visible')) {
+            generateFilterOptions();
+        }
+    }
+}
+
+function generateFilterOptions() {
+    const filterOptions = document.getElementById('filterOptions');
+    if (!filterOptions || !currentData.length) return;
+    
+    const columns = Object.keys(currentData[0] || {});
+    const html = columns.map(col => {
+        const uniqueValues = [...new Set(currentData.map(row => row[col]).filter(v => v != null && v !== ''))];
+        
+        if (uniqueValues.length < 50 && uniqueValues.length > 1) {
+            return `
+                <div class="filter-group">
+                    <label>${cleanColumnName(col)}</label>
+                    <select onchange="applyColumnFilter('${col.replace(/'/g, "\\'")}', this.value)">
+                        <option value="">All</option>
+                        ${uniqueValues.slice(0, 20).map(v => `<option value="${String(v).replace(/"/g, '&quot;')}">${v}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+        }
+        return '';
+    }).join('');
+    
+    filterOptions.innerHTML = html || '<p>No filterable columns available</p>';
+}
+
+function applyColumnFilter(column, value) {
+    if (value === '') {
+        delete activeFilters[column];
+    } else {
+        activeFilters[column] = value;
+    }
+    
+    // Apply all filters
+    filteredData = currentData.filter(row => {
+        return Object.entries(activeFilters).every(([col, val]) => {
+            return String(row[col]) === String(val);
+        });
+    });
+    
+    // Also apply search if exists
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    if (searchTerm) {
+        filteredData = filteredData.filter(row => {
+            return Object.values(row).some(value => {
+                if (value === null || value === undefined) return false;
+                return String(value).toLowerCase().includes(searchTerm);
+            });
+        });
+    }
+    
+    renderTable(filteredData);
+}
+
+function clearAllFilters() {
+    activeFilters = {};
+    document.querySelectorAll('.filter-group select').forEach(select => {
+        select.value = '';
+    });
+    document.getElementById('searchInput').value = '';
+    filteredData = [...currentData];
+    renderTable(filteredData);
+    showNotification('✅ All filters cleared');
+}
+
+function saveFilterPreset() {
+    const name = prompt('Enter a name for this filter preset:');
+    if (name) {
+        SettingsManager.saveFilterPreset(name);
+        updateFilterPresetsList();
+    }
+}
+
+function loadFilterPreset(name) {
+    if (name) {
+        SettingsManager.loadFilterPreset(name);
+    }
+}
+
+function updateFilterPresetsList() {
+    const select = document.getElementById('filterPresets');
+    if (!select) return;
+    
+    const presets = SettingsManager.settings.filterPresets || {};
+    select.innerHTML = '<option value="">Load Preset...</option>' + 
+        Object.keys(presets).map(name => 
+            `<option value="${name}">${name}</option>`
+        ).join('');
+}
+
 // Initialize on load
 document.addEventListener('DOMContentLoaded', init);
 

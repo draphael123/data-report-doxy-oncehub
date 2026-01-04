@@ -1,10 +1,16 @@
 // Export Manager
 const ExportManager = {
     async exportToPDF() {
+        // Check if data is loaded
+        if (!window.filteredData || filteredData.length === 0) {
+            showNotification('⚠️ No data available to export', 'warning');
+            return;
+        }
+        
         // Using jsPDF and html2canvas
         const { jsPDF } = window.jspdf;
         if (!jsPDF) {
-            alert('PDF library loading... Please try again in a moment.');
+            showNotification('📥 Loading PDF library... Please try again in a moment.', 'warning');
             return;
         }
 
@@ -100,6 +106,12 @@ const ExportManager = {
     },
     
     exportToExcel() {
+        // Check if data is loaded
+        if (!window.filteredData || filteredData.length === 0) {
+            showNotification('⚠️ No data available to export', 'warning');
+            return;
+        }
+        
         // Using SheetJS
         if (!window.XLSX) {
             // Fallback to CSV
@@ -126,6 +138,12 @@ const ExportManager = {
     },
     
     exportToCSV() {
+        // Check if data is loaded
+        if (!window.filteredData || filteredData.length === 0) {
+            showNotification('⚠️ No data available to export', 'warning');
+            return;
+        }
+        
         const columns = Object.keys(filteredData[0] || {}).filter(col => {
             return filteredData.some(row => row[col] != null && row[col] !== '');
         });
@@ -177,6 +195,12 @@ const ExportManager = {
     },
     
     async copyToClipboard() {
+        // Check if data is loaded
+        if (!window.filteredData || filteredData.length === 0) {
+            showNotification('⚠️ No data available to copy', 'warning');
+            return;
+        }
+        
         const columns = Object.keys(filteredData[0] || {}).filter(col => {
             return filteredData.some(row => row[col] != null && row[col] !== '');
         });
