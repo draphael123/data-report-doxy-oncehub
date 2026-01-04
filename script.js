@@ -693,68 +693,53 @@ function generateGustoHoursAnalytics(data, columns) {
 
 // Analytics for Doxy Over 20 Minutes
 function generateDoxy20MinAnalytics(data, columns) {
-    console.log('generateDoxy20MinAnalytics called');
-    console.log('Data rows:', data.length);
-    console.log('Columns:', columns);
+    if (!data || data.length === 0) {
+        console.warn('No data provided to generateDoxy20MinAnalytics');
+        return '';
+    }
     
     // Find provider column - use Unnamed: 0 which contains provider names
     const providerCol = 'Unnamed: 0';
     
-    // Find week columns that contain visit data
+    // Find week columns that contain visit data - be flexible with pattern matching
     const weekCols = columns.filter(col => {
-        const colStr = String(col).trim();
-        // Match "WEEK OF 11/30" or "Week of 12/6" pattern - case insensitive
-        const matches = colStr.match(/week\s+of\s+\d+\/\d+/i);
-        console.log(`Checking column "${colStr}": ${matches ? 'MATCH' : 'no match'}`);
-        return matches;
+        const colStr = String(col).toUpperCase().trim();
+        // Match "WEEK OF 11/30" or "Week of 12/6" pattern
+        return colStr.includes('WEEK') && colStr.includes('OF') && colStr.match(/\d+\/\d+/);
     });
     
-    console.log('Provider column:', providerCol);
-    console.log('Week columns found:', weekCols);
-    console.log('Number of week columns:', weekCols.length);
+    console.log('Doxy 20+ Analytics - Found week columns:', weekCols);
     
-    if (!providerCol || weekCols.length < 2) {
-        console.warn('Not enough data for Doxy 20min analytics - weekCols:', weekCols.length);
-        console.warn('All columns:', columns);
+    if (weekCols.length < 2) {
+        console.warn('Not enough week columns found:', weekCols);
         return '';
     }
     
-    // Get current and previous week
+    // Get last two weeks for comparison
     const currentWeekCol = weekCols[weekCols.length - 1];
     const prevWeekCol = weekCols[weekCols.length - 2];
     
-    console.log('Current week col:', currentWeekCol);
-    console.log('Previous week col:', prevWeekCol);
+    console.log('Using columns:', currentWeekCol, 'vs', prevWeekCol);
     
-    // Filter valid data (exclude headers and totals)
+    // Filter valid provider rows (skip headers, totals)
     const validData = data.filter(row => {
         const provider = row[providerCol];
-        const isValid = provider && 
-               provider !== 'Provider' && 
-               provider !== 'provider' &&
-               !String(provider).toLowerCase().includes('total') &&
-               !String(provider).toLowerCase().includes('grand total');
-        return isValid;
+        if (!provider) return false;
+        const provStr = String(provider).toLowerCase();
+        return provStr !== 'provider' && 
+               !provStr.includes('total') && 
+               provStr.trim() !== '';
     });
     
-    console.log('Valid data rows:', validData.length);
-    if (validData.length > 0) {
-        console.log('Sample valid row:', validData[0]);
-        console.log('Sample row current week value:', validData[0][currentWeekCol]);
-        console.log('Sample row prev week value:', validData[0][prevWeekCol]);
-    }
+    console.log(`Valid providers: ${validData.length} out of ${data.length} rows`);
     
-    // Calculate changes and sort
+    // Analyze each provider's performance
     const providerAnalysis = validData.map(row => {
         const provider = row[providerCol];
-        const currentRaw = row[currentWeekCol];
-        const prevRaw = row[prevWeekCol];
-        const currentVisits = parseFloat(currentRaw) || 0;
-        const prevVisits = parseFloat(prevRaw) || 0;
+        const currentVisits = parseInt(row[currentWeekCol]) || 0;
+        const prevVisits = parseInt(row[prevWeekCol]) || 0;
         const change = currentVisits - prevVisits;
         const changePercent = prevVisits > 0 ? ((change / prevVisits) * 100) : 0;
-        
-        console.log(`Provider ${provider}: current=${currentRaw} (parsed: ${currentVisits}), prev=${prevRaw} (parsed: ${prevVisits})`);
         
         return {
             provider,
@@ -765,40 +750,43 @@ function generateDoxy20MinAnalytics(data, columns) {
         };
     });
     
-    console.log('Provider analysis (first 3):', providerAnalysis.slice(0, 3));
-    console.log('Total providers analyzed:', providerAnalysis.length);
+    // Remove providers with no data at all
+    const activeProviders = providerAnalysis.filter(p => p.currentVisits > 0 || p.prevVisits > 0);
+    
+    console.log(`Active providers with data: ${activeProviders.length}`);
+    
+    if (activeProviders.length === 0) {
+        return `
+            <div class="analytics-summary">
+                <h3>⏱️ Visits Over 20 Minutes - No Data Available</h3>
+                <p>No visit data found for this period.</p>
+            </div>
+        `;
+    }
     
     // Best performers: Fewest visits over 20 min (most efficient)
-    // Include providers with data (even if 0 this week but had visits before)
-    const bestPerformers = [...providerAnalysis]
-        .sort((a, b) => {
-            // Sort by current visits (ascending), then by previous visits
-            if (a.currentVisits !== b.currentVisits) {
-                return a.currentVisits - b.currentVisits;
-            }
-            return a.prevVisits - b.prevVisits;
-        })
+    const bestPerformers = [...activeProviders]
+        .sort((a, b) => a.currentVisits - b.currentVisits)
         .slice(0, 5);
     
     // Needs attention: Most visits over 20 min (least efficient)
-    const needsAttention = [...providerAnalysis]
+    const needsAttention = [...activeProviders]
         .filter(p => p.currentVisits > 0)
         .sort((a, b) => b.currentVisits - a.currentVisits)
         .slice(0, 5);
     
-    console.log('Best performers:', bestPerformers);
-    console.log('Needs attention:', needsAttention);
-    
     // Calculate totals and averages
-    const totalCurrent = providerAnalysis.reduce((sum, p) => sum + p.currentVisits, 0);
-    const totalPrev = providerAnalysis.reduce((sum, p) => sum + p.prevVisits, 0);
+    const totalCurrent = activeProviders.reduce((sum, p) => sum + p.currentVisits, 0);
+    const totalPrev = activeProviders.reduce((sum, p) => sum + p.prevVisits, 0);
     const totalChange = totalCurrent - totalPrev;
     const totalChangePercent = totalPrev > 0 ? ((totalChange / totalPrev) * 100) : 0;
     
-    const avgCurrent = validData.length > 0 ? (totalCurrent / validData.length).toFixed(1) : 0;
-    const avgPrev = validData.length > 0 ? (totalPrev / validData.length).toFixed(1) : 0;
+    const avgCurrent = activeProviders.length > 0 ? (totalCurrent / activeProviders.length).toFixed(1) : 0;
+    const avgPrev = activeProviders.length > 0 ? (totalPrev / activeProviders.length).toFixed(1) : 0;
     const avgChange = avgCurrent - avgPrev;
     const avgChangePercent = avgPrev > 0 ? ((avgChange / avgPrev) * 100).toFixed(1) : 0;
+    
+    console.log(`Final stats - Total: ${totalCurrent}, Avg: ${avgCurrent}, Providers: ${activeProviders.length}`);
     
     return `
         <div class="analytics-summary">
