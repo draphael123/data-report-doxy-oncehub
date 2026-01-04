@@ -951,6 +951,11 @@ function renderTable(data) {
                 cellContent = `${anomalyFlag} ${cellContent}`;
             }
             
+            // Make first column (provider name) clickable
+            if (index === 0 && value && value !== '') {
+                cellContent = `<a href="#" class="provider-link" onclick="openProviderModal('${value.replace(/'/g, "\\'")}'); return false;">${cellContent}</a>`;
+            }
+            
             html += `<td class="${cellClass}">${cellContent}</td>`;
         });
         html += '</tr>';
@@ -1657,6 +1662,182 @@ function applyQuickFilter(filterType) {
     }
     
     renderTable(filteredData);
+}
+
+// Comparison Modal Functions
+function openComparisonModal() {
+    if (!currentData || currentData.length === 0) {
+        alert('No data available for comparison');
+        return;
+    }
+    
+    const columns = Object.keys(currentData[0] || {});
+    const weekCols = columns.filter(col => {
+        const colStr = String(col);
+        return colStr.match(/week of \d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed'));
+    });
+    
+    if (weekCols.length < 2) {
+        alert('Need at least 2 weeks of data for comparison');
+        return;
+    }
+    
+    // Populate week selects
+    const week1Select = document.getElementById('week1Select');
+    const week2Select = document.getElementById('week2Select');
+    
+    week1Select.innerHTML = weekCols.map((week, index) => 
+        `<option value="${week}" ${index === weekCols.length - 2 ? 'selected' : ''}>${cleanColumnName(week)}</option>`
+    ).join('');
+    
+    week2Select.innerHTML = weekCols.map((week, index) => 
+        `<option value="${week}" ${index === weekCols.length - 1 ? 'selected' : ''}>${cleanColumnName(week)}</option>`
+    ).join('');
+    
+    openModal('comparisonModal');
+    loadComparison();
+}
+
+function loadComparison() {
+    const week1 = document.getElementById('week1Select').value;
+    const week2 = document.getElementById('week2Select').value;
+    
+    if (!week1 || !week2 || week1 === week2) {
+        alert('Please select two different weeks');
+        return;
+    }
+    
+    const providerCol = Object.keys(currentData[0])[0];
+    const validData = currentData.filter(row => {
+        const provider = row[providerCol];
+        return provider && 
+               provider !== 'Provider' && 
+               !String(provider).toLowerCase().includes('total');
+    });
+    
+    // Build comparison table
+    let html = '<h3>Week-over-Week Comparison</h3>';
+    html += '<table class="comparison-table"><thead><tr>';
+    html += '<th>Provider</th>';
+    html += `<th>${cleanColumnName(week1)}</th>`;
+    html += `<th>${cleanColumnName(week2)}</th>`;
+    html += '<th>Change</th>';
+    html += '<th>% Change</th>';
+    html += '</tr></thead><tbody>';
+    
+    validData.forEach(row => {
+        const provider = row[providerCol];
+        const val1 = parseFloat(row[week1]) || 0;
+        const val2 = parseFloat(row[week2]) || 0;
+        const change = val2 - val1;
+        const percentChange = val1 > 0 ? ((change / val1) * 100).toFixed(1) : '-';
+        
+        let changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
+        let arrow = change > 0 ? '↑' : change < 0 ? '↓' : '→';
+        
+        html += `<tr>`;
+        html += `<td><a href="#" onclick="openProviderModal('${provider.replace(/'/g, "\\'")}'); return false;">${escapeHtml(provider)}</a></td>`;
+        html += `<td class="number">${val1}</td>`;
+        html += `<td class="number">${val2}</td>`;
+        html += `<td class="number ${changeClass}">${arrow} ${change >= 0 ? '+' : ''}${change}</td>`;
+        html += `<td class="number ${changeClass}">${percentChange !== '-' ? `${percentChange}%` : '-'}</td>`;
+        html += `</tr>`;
+    });
+    
+    html += '</tbody></table>';
+    
+    document.getElementById('comparisonContent').innerHTML = html;
+}
+
+// Provider Detail Modal Functions
+function openProviderModal(providerName) {
+    if (!currentData || currentData.length === 0) return;
+    
+    const providerCol = Object.keys(currentData[0])[0];
+    const providerData = currentData.find(row => row[providerCol] === providerName);
+    
+    if (!providerData) {
+        alert('Provider not found');
+        return;
+    }
+    
+    document.getElementById('providerModalTitle').textContent = `👤 ${providerName}`;
+    
+    const columns = Object.keys(providerData);
+    const weekCols = columns.filter(col => {
+        const colStr = String(col);
+        return colStr.match(/week of \d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed'));
+    });
+    
+    let html = '<div class="provider-stats">';
+    
+    // Summary stats
+    if (weekCols.length > 0) {
+        const totalVisits = weekCols.reduce((sum, col) => {
+            const val = parseFloat(providerData[col]);
+            return sum + (isNaN(val) ? 0 : val);
+        }, 0);
+        
+        const avgVisits = totalVisits / weekCols.length;
+        const currentWeek = parseFloat(providerData[weekCols[weekCols.length - 1]]) || 0;
+        const prevWeek = weekCols.length > 1 ? parseFloat(providerData[weekCols[weekCols.length - 2]]) || 0 : 0;
+        
+        html += `
+            <div class="stat-card">
+                <div class="stat-label">Total Visits</div>
+                <div class="stat-value">${totalVisits}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Average per Week</div>
+                <div class="stat-value">${avgVisits.toFixed(1)}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Current Week</div>
+                <div class="stat-value">${currentWeek}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Previous Week</div>
+                <div class="stat-value">${prevWeek}</div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    
+    // Weekly breakdown table
+    html += '<h3>Weekly Breakdown</h3>';
+    html += '<table class="detail-table"><thead><tr><th>Week</th><th>Visits</th><th>Change from Previous</th></tr></thead><tbody>';
+    
+    weekCols.forEach((week, index) => {
+        const visits = parseFloat(providerData[week]) || 0;
+        const prevWeekVisits = index > 0 ? parseFloat(providerData[weekCols[index - 1]]) || 0 : 0;
+        const change = index > 0 ? visits - prevWeekVisits : '-';
+        const changeClass = typeof change === 'number' ? (change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral') : '';
+        
+        html += `<tr>`;
+        html += `<td>${cleanColumnName(week)}</td>`;
+        html += `<td class="number">${visits}</td>`;
+        html += `<td class="number ${changeClass}">${typeof change === 'number' ? (change >= 0 ? '+' : '') + change : '-'}</td>`;
+        html += `</tr>`;
+    });
+    
+    html += '</tbody></table>';
+    
+    // All other details
+    html += '<h3>Additional Information</h3>';
+    html += '<table class="detail-table"><tbody>';
+    
+    columns.filter(col => !weekCols.includes(col) && col !== providerCol).forEach(col => {
+        const value = providerData[col];
+        if (value !== null && value !== undefined && value !== '') {
+            html += `<tr><th>${cleanColumnName(col)}</th><td>${escapeHtml(String(value))}</td></tr>`;
+        }
+    });
+    
+    html += '</tbody></table>';
+    
+    document.getElementById('providerContent').innerHTML = html;
+    openModal('providerModal');
 }
 
 // Helper functions for new features
