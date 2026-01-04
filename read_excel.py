@@ -22,7 +22,7 @@ for sheet_name in xls.sheet_names:
     # Convert column names to strings (handle datetime columns)
     df.columns = [str(col) for col in df.columns]
     
-    # Special handling for Doxy Visits - clean up the messy structure
+    # Special handling for Doxy Visits - clean up the messy structure BEFORE header detection
     if sheet_name == "Doxy Visits":
         print("Applying special cleaning for Doxy Visits...")
         
@@ -130,6 +130,41 @@ for sheet_name in xls.sheet_names:
             print(f"Sample data:\n{df.head()}")
         
         print("\n" + "="*50 + "\n")
+    
+    # For sheets that weren't specially cleaned, check if first row contains headers
+    if sheet_name not in ["Doxy Visits", "Gusto Hours "]:
+        first_row = df.iloc[0] if len(df) > 0 else None
+        if first_row is not None:
+            # Check if first row looks like headers
+            first_row_values = [str(v).lower() for v in first_row.values if pd.notna(v)]
+            header_keywords = ['provider', 'number of visits', 'type of visit', 'visit type', 'program', 'total visits', 'hours']
+            
+            # If first row contains mostly header-like text, use it to rename columns
+            if any(keyword in ' '.join(first_row_values) for keyword in header_keywords):
+                print(f"  Detected header row in data for {sheet_name}")
+                
+                # Create new column names from first row
+                new_columns = []
+                for i, (col, val) in enumerate(zip(df.columns, first_row)):
+                    if pd.notna(val) and str(val).strip() and str(val).strip().lower() not in ['nan']:
+                        # Use the value from first row as column name
+                        new_col = str(val).strip()
+                        # If this column name already exists, keep original column name
+                        if new_col in new_columns or len(new_col) > 50:
+                            new_columns.append(col)
+                        else:
+                            new_columns.append(new_col)
+                    else:
+                        # Keep original column name
+                        new_columns.append(col)
+                
+                df.columns = new_columns
+                # Remove the header row from data
+                df = df.iloc[1:].reset_index(drop=True)
+                
+                print(f"  Renamed columns: {list(df.columns)[:5]}... ({len(df.columns)} total)")
+                print(f"  New shape after removing header row: {df.shape}")
+                print()
     
     # Replace NaN, inf, -inf with None
     df = df.replace([float('inf'), float('-inf')], None)
