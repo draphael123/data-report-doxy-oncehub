@@ -10,9 +10,8 @@ let activeFilters = {};
 // Initialize the app
 async function init() {
     try {
-        // Load data
-        const response = await fetch('data.json');
-        allData = await response.json();
+        // Load data directly from Excel file
+        await loadExcelFile();
         
         // Set last update time
         document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
@@ -27,6 +26,47 @@ async function init() {
         console.error('Error loading data:', error);
         document.getElementById('tableWrapper').innerHTML = 
             '<p class="no-results">Error loading data. Please check the console.</p>';
+    }
+}
+
+// Load data directly from Excel file
+async function loadExcelFile() {
+    try {
+        // Check if XLSX library is loaded
+        if (!window.XLSX) {
+            throw new Error('Excel library not loaded. Please refresh the page.');
+        }
+        
+        // Fetch the Excel file
+        const response = await fetch('Oncehub_Doxy Report (in use) (3).xlsx');
+        const arrayBuffer = await response.arrayBuffer();
+        
+        // Parse Excel file
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        
+        // Convert each sheet to JSON
+        allData = {};
+        workbook.SheetNames.forEach(sheetName => {
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                raw: false,
+                defval: null
+            });
+            allData[sheetName] = jsonData;
+        });
+        
+        console.log('Excel data loaded successfully:', Object.keys(allData));
+        
+        if (Object.keys(allData).length === 0) {
+            throw new Error('No data found in Excel file');
+        }
+        
+    } catch (error) {
+        console.error('Error loading Excel file:', error);
+        // Fallback to data.json
+        console.log('Attempting to load from data.json as fallback...');
+        const response = await fetch('data.json');
+        allData = await response.json();
     }
 }
 
