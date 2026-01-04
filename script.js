@@ -213,6 +213,15 @@ function loadTab(tabName) {
     console.log('Tab exists in allData:', tabName in allData);
     
     currentData = allData[tabName] || [];
+    
+    // Filter out "Total" rows
+    currentData = currentData.filter(row => {
+        const firstValue = Object.values(row)[0];
+        return firstValue !== 'Total' && 
+               firstValue !== 'TOTAL' && 
+               !String(firstValue).toLowerCase().includes('grand total');
+    });
+    
     console.log(`currentData length: ${currentData.length}`);
     
     if (currentData.length > 0) {
@@ -367,24 +376,53 @@ function generateDoxyVisitsAnalytics(data, columns) {
     const change = latestTotal - previousTotal;
     const percentChange = previousTotal !== 0 ? ((change / previousTotal) * 100).toFixed(1) : 0;
     
-    // Find top performers
+    // Find providers with trend data (current week vs previous week)
     const providerCol = columns.find(col => col.toLowerCase().includes('provider'));
-    const topPerformers = data
-        .filter(row => row[providerCol] && row[latestWeek])
-        .map(row => ({
-            name: row[providerCol],
-            value: parseFloat(row[latestWeek]) || 0
-        }))
-        .sort((a, b) => b.value - a.value)
+    const providersWithTrends = data
+        .filter(row => row[providerCol] && row[latestWeek] && row[previousWeek])
+        .map(row => {
+            const current = parseFloat(row[latestWeek]) || 0;
+            const previous = parseFloat(row[previousWeek]) || 0;
+            const trend = current - previous;
+            const trendPercent = previous !== 0 ? ((trend / previous) * 100).toFixed(1) : 0;
+            return {
+                name: row[providerCol],
+                current: current,
+                previous: previous,
+                trend: trend,
+                trendPercent: trendPercent
+            };
+        });
+    
+    // Top performers by current week
+    const topPerformers = [...providersWithTrends]
+        .sort((a, b) => b.current - a.current)
+        .slice(0, 5);
+    
+    // Biggest improvements
+    const biggestGains = [...providersWithTrends]
+        .filter(p => p.trend > 0)
+        .sort((a, b) => b.trend - a.trend)
+        .slice(0, 5);
+    
+    // Biggest declines
+    const biggestDeclines = [...providersWithTrends]
+        .filter(p => p.trend < 0)
+        .sort((a, b) => a.trend - b.trend)
         .slice(0, 5);
     
     // Calculate average
     const avgVisits = (latestTotal / data.length).toFixed(1);
     
+    // Count providers trending up vs down
+    const trendingUp = providersWithTrends.filter(p => p.trend > 0).length;
+    const trendingDown = providersWithTrends.filter(p => p.trend < 0).length;
+    const unchanged = providersWithTrends.filter(p => p.trend === 0).length;
+    
     return `
         <div class="analytics-summary">
-            <h3>📊 Doxy Visits Analysis</h3>
-            <p>Week-over-week performance metrics for provider visits</p>
+            <h3>📊 Doxy Visits Analysis - Week over Week Trends</h3>
+            <p><strong>${trendingUp}</strong> providers trending ↑ up | <strong>${trendingDown}</strong> trending ↓ down | <strong>${unchanged}</strong> unchanged</p>
         </div>
         
         <div class="analytics-grid">
@@ -393,12 +431,12 @@ function generateDoxyVisitsAnalytics(data, columns) {
                 <div class="analytics-value">${latestTotal.toLocaleString()}</div>
                 <div class="analytics-change ${change >= 0 ? 'positive' : 'negative'}">
                     <span class="arrow">${change >= 0 ? '↑' : '↓'}</span>
-                    <span>${Math.abs(change).toLocaleString()} visits (${Math.abs(percentChange)}%)</span>
+                    <span>${Math.abs(change).toLocaleString()} visits (${Math.abs(percentChange)}%) vs last week</span>
                 </div>
             </div>
             
             <div class="analytics-card">
-                <h3>Previous Week Total</h3>
+                <h3>Previous Week</h3>
                 <div class="analytics-value">${previousTotal.toLocaleString()}</div>
                 <div class="analytics-change neutral">
                     <span>${cleanColumnName(previousWeek)}</span>
@@ -415,15 +453,50 @@ function generateDoxyVisitsAnalytics(data, columns) {
         </div>
         
         <div class="top-performers">
-            <h3>🏆 Top 5 Performers (${cleanColumnName(latestWeek)})</h3>
+            <h3>🏆 Top 5 Performers (Current Week)</h3>
             ${topPerformers.map((performer, idx) => `
                 <div class="performer-item">
                     <span class="performer-rank">#${idx + 1}</span>
                     <span class="performer-name">${performer.name}</span>
-                    <span class="performer-value">${performer.value.toLocaleString()}</span>
+                    <span class="performer-value">${performer.current.toLocaleString()}</span>
+                    <span class="performer-trend ${performer.trend >= 0 ? 'up' : 'down'}">
+                        ${performer.trend >= 0 ? '↑' : '↓'} ${Math.abs(performer.trend)} (${Math.abs(performer.trendPercent)}%)
+                    </span>
                 </div>
             `).join('')}
         </div>
+        
+        ${biggestGains.length > 0 ? `
+        <div class="top-performers">
+            <h3>📈 Biggest Increases Week-over-Week</h3>
+            ${biggestGains.map((performer, idx) => `
+                <div class="performer-item">
+                    <span class="performer-rank">#${idx + 1}</span>
+                    <span class="performer-name">${performer.name}</span>
+                    <span class="performer-value">${performer.current.toLocaleString()}</span>
+                    <span class="performer-trend up">
+                        ↑ ${performer.trend} (+${performer.trendPercent}%)
+                    </span>
+                </div>
+            `).join('')}
+        </div>
+        ` : ''}
+        
+        ${biggestDeclines.length > 0 ? `
+        <div class="top-performers">
+            <h3>📉 Biggest Decreases Week-over-Week</h3>
+            ${biggestDeclines.map((performer, idx) => `
+                <div class="performer-item">
+                    <span class="performer-rank">#${idx + 1}</span>
+                    <span class="performer-name">${performer.name}</span>
+                    <span class="performer-value">${performer.current.toLocaleString()}</span>
+                    <span class="performer-trend down">
+                        ↓ ${Math.abs(performer.trend)} (${performer.trendPercent}%)
+                    </span>
+                </div>
+            `).join('')}
+        </div>
+        ` : ''}
     `;
 }
 

@@ -407,12 +407,23 @@ header h1 {
 
 .performer-value {
     font-weight: 700;
-    background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: white;
     font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
     font-size: 1.1rem;
+}
+
+.performer-trend {
+    margin-left: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.performer-trend.up {
+    color: var(--secondary-color);
+}
+
+.performer-trend.down {
+    color: #ef4444;
 }
 
 .tab-button {
@@ -1289,6 +1300,14 @@ kbd {
 .dark-mode tbody tr,
 .dark-mode td {
     color: #f1f5f9;
+}
+
+.dark-mode .performer-name {
+    color: #f1f5f9;
+}
+
+.dark-mode .performer-value {
+    color: white;
 }
 
 .dark-mode .export-btn,
