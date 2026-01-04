@@ -2,7 +2,13 @@
 
 ## Current Setup
 
-The dashboard now reads **directly from the Excel file** instead of a pre-generated JSON file.
+The dashboard reads from **data.json** - a JSON file generated from your Excel spreadsheet.
+
+**Why JSON instead of direct Excel reading?**
+- More reliable browser compatibility
+- Faster loading times
+- No dependency on external libraries at runtime
+- Better error handling
 
 ### Excel File
 - **File:** `Oncehub_Doxy Report (in use) (3).xlsx`
@@ -11,41 +17,61 @@ The dashboard now reads **directly from the Excel file** instead of a pre-genera
 
 ### How It Works
 
-1. **On Page Load:**
-   - The website fetches the Excel file using the XLSX.js library
-   - Parses all sheets in the workbook
-   - Converts each sheet to JSON format in real-time
-   - Displays the data in the dashboard
+1. **Data Generation (One-time, when updating):**
+   - You update the Excel file with new data
+   - Run `python read_excel.py` to convert Excel → JSON
+   - This creates `data.json` with all sheets as JSON objects
 
-2. **Benefits:**
-   - ✅ No need to run `read_excel.py` anymore
-   - ✅ Always shows current data from Excel
-   - ✅ Single source of truth
-   - ✅ Automatic updates when Excel file changes
+2. **On Page Load:**
+   - The website fetches `data.json`
+   - Parses the JSON data (instant, no conversion needed)
+   - Displays data in the dashboard
 
-3. **Fallback:**
-   - If Excel file fails to load, falls back to `data.json`
-   - Ensures the site always has data to display
+3. **Benefits:**
+   - ✅ Fast loading (JSON is lightweight)
+   - ✅ Reliable (no library dependencies at runtime)
+   - ✅ Works offline once cached
+   - ✅ Cross-browser compatible
+   - ✅ Easy to debug and inspect
 
 ## Updating Data
 
-### Option 1: Replace Excel File (Recommended)
-1. Replace `Oncehub_Doxy Report (in use) (3).xlsx` with new file
-2. Keep the same filename or update `script.js` line with new filename
-3. Commit and push:
+### Steps to Update Your Dashboard Data:
+
+1. **Update your Excel file** with new data
+   - File: `Oncehub_Doxy Report (in use) (3).xlsx`
+
+2. **Regenerate JSON from Excel:**
    ```bash
-   git add "Oncehub_Doxy Report (in use) (3).xlsx"
-   git commit -m "Update report data"
+   python read_excel.py
+   ```
+   This creates/updates `data.json` with your latest data
+
+3. **Commit and deploy:**
+   ```bash
+   git add data.json "Oncehub_Doxy Report (in use) (3).xlsx"
+   git commit -m "Update report data for [date/reason]"
    git push
    ```
-4. Vercel auto-deploys in ~30 seconds
 
-### Option 2: Keep Both Excel and JSON
-If you want to maintain both options:
-1. Update Excel file
-2. Run: `python read_excel.py` to regenerate JSON
-3. Commit both files
-4. The site will try Excel first, fall back to JSON if needed
+4. **Vercel auto-deploys** in ~30 seconds
+   - Visit: https://doxy-oncehub-reports.vercel.app
+   - Hard refresh to see new data: `Ctrl+F5` (Windows) or `Cmd+Shift+R` (Mac)
+
+### Quick Update Script
+
+Save this as `update_data.sh` (Mac/Linux) or `update_data.bat` (Windows):
+
+```bash
+#!/bin/bash
+python read_excel.py
+git add data.json "Oncehub_Doxy Report (in use) (3).xlsx"
+git commit -m "Update data - $(date +%Y-%m-%d)"
+git push
+echo "Deploying to Vercel..."
+```
+
+Then just run: `./update_data.sh`
 
 ## Sheet Names in Excel
 
@@ -65,23 +91,32 @@ The dashboard automatically reads all sheets from the Excel file:
 
 ## Technical Details
 
-### Libraries Used
-- **SheetJS (xlsx)** - v0.18.5
-- Loaded from CDN: `https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js`
+### Data Generation (Python)
+- **pandas** - Read Excel files
+- **Script:** `read_excel.py`
+- **Input:** `Oncehub_Doxy Report (in use) (3).xlsx`
+- **Output:** `data.json`
 
-### Code Location
-- Main data loading function: `script.js` → `loadExcelFile()`
-- Initialization: `script.js` → `init()`
+### Dashboard (JavaScript)
+- **Native Fetch API** - Load JSON
+- **No runtime dependencies** for data loading
+- **Code location:** `script.js` → `init()` function
 
 ### Data Flow
 ```
 Excel File (.xlsx)
     ↓
+Python Script (read_excel.py)
+    ↓
+pandas.read_excel() → JSON conversion
+    ↓
+data.json (committed to git)
+    ↓
+Deployed to Vercel
+    ↓
 Browser Fetch API
     ↓
-XLSX.read() - Parse binary
-    ↓
-XLSX.utils.sheet_to_json() - Convert to JSON
+JSON.parse()
     ↓
 allData object (in memory)
     ↓
