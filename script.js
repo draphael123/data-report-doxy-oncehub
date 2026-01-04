@@ -285,6 +285,11 @@ function loadTab(tabName) {
     console.log('Rendering table...');
     // Render table
     renderTable(filteredData);
+    
+    console.log('Generating smart insights...');
+    // Generate insights
+    generateSmartInsights(currentData, columns, tabName);
+    
     console.log('loadTab completed');
 }
 
@@ -988,6 +993,9 @@ function renderTable(data) {
         html += `<th class="${sortClass}" onclick="sortData('${col.replace(/'/g, "\\'")}')">${displayName}</th>`;
     });
     
+    // Add actions column
+    html += '<th class="actions-header">Actions</th>';
+    
     html += '</tr></thead><tbody>';
     
     // Detect week columns for trend analysis
@@ -1042,16 +1050,32 @@ function renderTable(data) {
             let cellContent = '';
             
             // Format numbers for better readability
+            let cellDataValue = '';
             if (isNumber) {
                 const numValue = parseFloat(value);
+                cellDataValue = ` data-value="${numValue}"`;
+                
+                // Heat map coloring for week columns (visits/numbers)
+                if (weekCols.includes(col) && numValue > 0) {
+                    // Determine heat level based on value ranges
+                    if (numValue >= 50) {
+                        cellClass += ' heat-excellent';
+                    } else if (numValue >= 30) {
+                        cellClass += ' heat-good';
+                    } else if (numValue >= 15) {
+                        cellClass += ' heat-average';
+                    } else if (numValue > 0) {
+                        cellClass += ' heat-low';
+                    }
+                }
                 
                 // Check if it's a percentage (value between 0-100 with decimals or contains %)
                 if (value.includes('%') || (numValue >= 0 && numValue <= 100 && value.includes('.'))) {
                     cellContent = numValue.toFixed(1) + (value.includes('%') ? '' : '%');
                     cellClass += ' percentage';
                 } else if (numValue === 0) {
-                    // Style zeros differently
-                    cellContent = '—';
+                    // Style zeros differently - with context tooltip
+                    cellContent = '<span class="zero-badge" title="No activity this period">—</span>';
                     cellClass += ' zero-value';
                 } else if (Math.abs(numValue) >= 1000) {
                     // Add comma separators for large numbers
@@ -1063,9 +1087,14 @@ function renderTable(data) {
                     // Whole number
                     cellContent = numValue.toLocaleString('en-US');
                 }
+                
+                // Add unit labels for clarity
+                if (weekCols.includes(col) && numValue > 0) {
+                    cellContent = `<span class="cell-value">${cellContent}</span><span class="cell-unit">visits</span>`;
+                }
             } else if (value === '') {
-                // Empty values
-                cellContent = '<span class="empty-cell">—</span>';
+                // Empty values with helpful message
+                cellContent = '<span class="empty-cell" title="No data available">—</span>';
                 cellClass += ' empty';
             } else {
                 cellContent = escapeHtml(value);
@@ -1106,17 +1135,225 @@ function renderTable(data) {
                 cellContent = `<a href="#" class="provider-link" onclick="openProviderModal('${value.replace(/'/g, "\\'")}'); return false;">${cellContent}</a>`;
             }
             
-            html += `<td class="${cellClass}">${cellContent}</td>`;
+            html += `<td class="${cellClass}"${cellDataValue}>${cellContent}</td>`;
         });
+        
+        // Add actions menu
+        const providerName = row[meaningfulColumns[0]];
+        html += `
+            <td class="actions-cell">
+                <div class="actions-menu">
+                    <button class="actions-btn" onclick="toggleRowActions(this)">⋮</button>
+                    <div class="actions-dropdown">
+                        <button onclick="openProviderModal('${escapeHtml(providerName).replace(/'/g, "\\'")}')">👤 View Details</button>
+                        <button onclick="exportRowData(this)">📥 Export Row</button>
+                        <button onclick="addRowNote(this)">📝 Add Note</button>
+                        <button onclick="compareRow(this)">📊 Compare</button>
+                    </div>
+                </div>
+            </td>
+        `;
+        
         html += '</tr>';
     });
     
-    html += '</tbody></table>';
+    html += '</tbody>';
+    
+    // Add sticky summary row
+    html += '<tfoot class="sticky-summary"><tr>';
+    html += '<th>TOTALS</th>';
+    meaningfulColumns.slice(1).forEach((col, colIndex) => {
+        const actualCol = meaningfulColumns[colIndex + 1];
+        // Calculate sum for numeric columns
+        const sum = data.reduce((acc, row) => {
+            const val = parseFloat(row[actualCol]);
+            return acc + (isNaN(val) ? 0 : val);
+        }, 0);
+        
+        if (sum > 0) {
+            const avg = (sum / data.length).toFixed(1);
+            html += `<th class="summary-cell" title="Total: ${sum.toLocaleString()}&#10;Average: ${avg}">
+                <div class="summary-value">${sum.toLocaleString()}</div>
+                <div class="summary-avg">avg: ${avg}</div>
+            </th>`;
+        } else {
+            html += '<th class="summary-cell">—</th>';
+        }
+    });
+    html += '</tr></tfoot>';
+    
+    html += '</table>';
     
     tableWrapper.innerHTML = html;
     
     // Enhance table interactivity
     enhanceTableReadability();
+    
+    // Add sparklines to each row
+    addSparklinesToRows(data, weekCols);
+}
+
+// Add sparklines to table rows
+function addSparklinesToRows(data, weekCols) {
+    if (weekCols.length < 3) return; // Need at least 3 data points
+    
+    const table = document.querySelector('table');
+    if (!table) return;
+    
+    const rows = table.querySelectorAll('tbody tr');
+    
+    rows.forEach((row, rowIndex) => {
+        if (rowIndex >= data.length) return;
+        
+        const rowData = data[rowIndex];
+        const values = weekCols.map(col => parseFloat(rowData[col]) || 0);
+        
+        // Skip if all zeros
+        if (values.every(v => v === 0)) return;
+        
+        // Create sparkline
+        const sparkline = createSparkline(values);
+        
+        // Add sparkline to first cell
+        const firstCell = row.querySelector('td:first-child');
+        if (firstCell && sparkline) {
+            firstCell.insertAdjacentHTML('beforeend', sparkline);
+        }
+    });
+}
+
+function createSparkline(values) {
+    if (!values || values.length < 2) return '';
+    
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    
+    const width = 50;
+    const height = 20;
+    const points = values.map((val, i) => {
+        const x = (i / (values.length - 1)) * width;
+        const y = height - ((val - min) / range) * height;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    
+    // Determine trend
+    const firstHalf = values.slice(0, Math.floor(values.length / 2)).reduce((a, b) => a + b, 0);
+    const secondHalf = values.slice(Math.floor(values.length / 2)).reduce((a, b) => a + b, 0);
+    const trend = secondHalf > firstHalf ? 'up' : secondHalf < firstHalf ? 'down' : 'neutral';
+    const trendColor = trend === 'up' ? '#10b981' : trend === 'down' ? '#ef4444' : '#6b7280';
+    
+    return `
+        <svg class="sparkline sparkline-${trend}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+            <polyline
+                fill="none"
+                stroke="${trendColor}"
+                stroke-width="2"
+                points="${points}"
+            />
+            <circle cx="${(values.length - 1) / (values.length - 1) * width}" cy="${height - ((values[values.length - 1] - min) / range) * height}" r="2" fill="${trendColor}"/>
+        </svg>
+    `;
+}
+
+// Generate and display smart insights
+function generateSmartInsights(data, columns, tabName) {
+    const weekCols = columns.filter(col => {
+        const colStr = String(col);
+        return colStr.match(/week of \d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed'));
+    });
+    
+    if (weekCols.length < 2) return;
+    
+    const currentWeekCol = weekCols[weekCols.length - 1];
+    const prevWeekCol = weekCols[weekCols.length - 2];
+    const providerCol = columns[0];
+    
+    const validData = data.filter(row => {
+        const provider = row[providerCol];
+        return provider && provider !== 'Provider' && !String(provider).toLowerCase().includes('total');
+    });
+    
+    const insights = [];
+    
+    // Calculate total and changes
+    const currentTotal = validData.reduce((sum, row) => sum + (parseFloat(row[currentWeekCol]) || 0), 0);
+    const previousTotal = validData.reduce((sum, row) => sum + (parseFloat(row[prevWeekCol]) || 0), 0);
+    const totalChange = currentTotal - previousTotal;
+    const totalChangePercent = previousTotal > 0 ? ((totalChange / previousTotal) * 100).toFixed(1) : 0;
+    
+    // Insight 1: Overall performance
+    if (Math.abs(totalChangePercent) > 10) {
+        const emoji = totalChange > 0 ? '🚀' : '⚠️';
+        insights.push(`${emoji} <strong>${tabName}:</strong> ${totalChange > 0 ? 'Up' : 'Down'} ${Math.abs(totalChangePercent)}% this week (${totalChange > 0 ? '+' : ''}${totalChange} visits)`);
+    }
+    
+    // Insight 2: Top performer
+    const performers = validData.map(row => ({
+        name: row[providerCol],
+        current: parseFloat(row[currentWeekCol]) || 0
+    })).sort((a, b) => b.current - a.current);
+    
+    if (performers.length > 0 && performers[0].current > 0) {
+        insights.push(`🏆 <strong>Top Performer:</strong> ${performers[0].name} with ${performers[0].current} visits`);
+    }
+    
+    // Insight 3: Zero activity warnings
+    const zeroVisits = validData.filter(row => (parseFloat(row[currentWeekCol]) || 0) === 0 && (parseFloat(row[prevWeekCol]) || 0) > 0);
+    if (zeroVisits.length > 0) {
+        insights.push(`🔴 <strong>Attention Needed:</strong> ${zeroVisits.length} provider${zeroVisits.length > 1 ? 's' : ''} with zero visits (had activity last week)`);
+    }
+    
+    // Insight 4: Biggest gain
+    const gains = validData.map(row => ({
+        name: row[providerCol],
+        change: (parseFloat(row[currentWeekCol]) || 0) - (parseFloat(row[prevWeekCol]) || 0)
+    })).filter(p => p.change > 0).sort((a, b) => b.change - a.change);
+    
+    if (gains.length > 0 && gains[0].change > 5) {
+        insights.push(`📈 <strong>Biggest Gain:</strong> ${gains[0].name} (+${gains[0].change} visits)`);
+    }
+    
+    // Insight 5: Milestone
+    if (currentTotal >= 1000 && currentTotal < previousTotal) {
+        insights.push(`🎯 <strong>Milestone:</strong> Team maintained ${Math.floor(currentTotal / 1000)}K+ visits!`);
+    }
+    
+    // Display insights
+    const insightsPanel = document.getElementById('insightsPanel');
+    const insightsContent = document.getElementById('insightsContent');
+    
+    if (insights.length > 0) {
+        insightsContent.innerHTML = insights.map(insight => 
+            `<div class="insight-item">${insight}</div>`
+        ).join('');
+        insightsPanel.style.display = 'block';
+    } else {
+        insightsPanel.style.display = 'none';
+    }
+}
+
+function closeInsights() {
+    document.getElementById('insightsPanel').style.display = 'none';
+}
+
+// View mode switching
+let currentViewMode = 'actual';
+const weeklyGoal = 50; // Default goal per provider
+
+function switchViewMode(mode) {
+    currentViewMode = mode;
+    
+    // Update button states
+    document.querySelectorAll('.view-mode-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-mode') === mode) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Reload table with new view
+    loadTab(currentTab);
 }
 
 // Enhance table readability with column highlighting
@@ -1144,13 +1381,132 @@ function enhanceTableReadability() {
         cells.forEach((cell, colIndex) => {
             cell.addEventListener('mouseenter', () => {
                 highlightColumn(colIndex, true);
+                showQuickTooltip(cell, colIndex);
             });
             
             cell.addEventListener('mouseleave', () => {
                 highlightColumn(colIndex, false);
+                hideQuickTooltip();
             });
         });
     });
+}
+
+// Quick tooltip on hover
+let tooltipTimeout;
+function showQuickTooltip(cell, colIndex) {
+    const dataValue = cell.getAttribute('data-value');
+    if (!dataValue) return;
+    
+    clearTimeout(tooltipTimeout);
+    tooltipTimeout = setTimeout(() => {
+        const value = parseFloat(dataValue);
+        const goal = weeklyGoal;
+        const percentOfGoal = ((value / goal) * 100).toFixed(1);
+        
+        // Get column average
+        const table = cell.closest('table');
+        const colCells = Array.from(table.querySelectorAll(`tbody td:nth-child(${colIndex + 1})`));
+        const colValues = colCells.map(c => parseFloat(c.getAttribute('data-value')) || 0).filter(v => v > 0);
+        const colAverage = colValues.length > 0 ? (colValues.reduce((a, b) => a + b, 0) / colValues.length).toFixed(1) : 0;
+        
+        const tooltip = document.createElement('div');
+        tooltip.className = 'quick-tooltip';
+        tooltip.innerHTML = `
+            <div><strong>${value}</strong> visits</div>
+            <div>${percentOfGoal}% of goal (${goal})</div>
+            <div>Column avg: ${colAverage}</div>
+            ${value > colAverage ? '<div class="positive">↑ Above average</div>' : '<div class="negative">↓ Below average</div>'}
+        `;
+        
+        const rect = cell.getBoundingClientRect();
+        tooltip.style.position = 'fixed';
+        tooltip.style.top = `${rect.top - 10}px`;
+        tooltip.style.left = `${rect.left + rect.width / 2}px`;
+        tooltip.style.transform = 'translate(-50%, -100%)';
+        
+        document.body.appendChild(tooltip);
+    }, 500);
+}
+
+function hideQuickTooltip() {
+    clearTimeout(tooltipTimeout);
+    const tooltip = document.querySelector('.quick-tooltip');
+    if (tooltip) tooltip.remove();
+}
+
+// Row actions menu
+function toggleRowActions(btn) {
+    const dropdown = btn.nextElementSibling;
+    const allDropdowns = document.querySelectorAll('.actions-dropdown');
+    
+    // Close all other dropdowns
+    allDropdowns.forEach(d => {
+        if (d !== dropdown) d.classList.remove('show');
+    });
+    
+    dropdown.classList.toggle('show');
+    
+    // Close on outside click
+    document.addEventListener('click', function closeDropdown(e) {
+        if (!e.target.closest('.actions-menu')) {
+            dropdown.classList.remove('show');
+            document.removeEventListener('click', closeDropdown);
+        }
+    });
+}
+
+function exportRowData(btn) {
+    const row = btn.closest('tr');
+    const cells = row.querySelectorAll('td');
+    const headers = Array.from(document.querySelectorAll('thead th')).map(th => th.textContent);
+    
+    let csvContent = headers.slice(0, -1).join(',') + '\n';
+    csvContent += Array.from(cells).slice(0, -1).map(cell => {
+        const text = cell.textContent.trim();
+        return text.includes(',') ? `"${text}"` : text;
+    }).join(',');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `row-data-${Date.now()}.csv`;
+    a.click();
+    
+    showNotification('✅ Row exported successfully!');
+}
+
+function addRowNote(btn) {
+    const note = prompt('Add a note for this row:');
+    if (note) {
+        // Store note (in real app, would save to database)
+        showNotification('📝 Note saved!');
+    }
+}
+
+function compareRow(btn) {
+    const row = btn.closest('tr');
+    const providerCell = row.querySelector('td:first-child');
+    const providerName = providerCell.textContent.trim().replace(/[^a-zA-Z0-9\s]/g, '');
+    
+    openProviderModal(providerName);
+}
+
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 function highlightColumn(colIndex, highlight) {

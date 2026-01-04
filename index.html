@@ -61,6 +61,33 @@
             <!-- Charts will be inserted here -->
         </div>
 
+        <!-- Smart Insights Panel -->
+        <div class="insights-panel" id="insightsPanel" style="display: none;">
+            <div class="insights-header">
+                <h3>💡 Smart Insights</h3>
+                <button class="insights-close" onclick="closeInsights()">×</button>
+            </div>
+            <div class="insights-content" id="insightsContent">
+                <!-- Insights will be generated here -->
+            </div>
+        </div>
+
+        <!-- Comparison Mode Toggle -->
+        <div class="view-mode-toggle" id="viewModeToggle">
+            <button class="view-mode-btn active" data-mode="actual" onclick="switchViewMode('actual')">
+                📊 Actual Numbers
+            </button>
+            <button class="view-mode-btn" data-mode="percent" onclick="switchViewMode('percent')">
+                📈 % of Goal
+            </button>
+            <button class="view-mode-btn" data-mode="delta" onclick="switchViewMode('delta')">
+                📉 vs Last Week
+            </button>
+            <button class="view-mode-btn" data-mode="average" onclick="switchViewMode('average')">
+                📐 vs Average
+            </button>
+        </div>
+
         <!-- Summary Cards -->
         <div class="summary-cards" id="summaryCards">
             <div class="summary-card">
