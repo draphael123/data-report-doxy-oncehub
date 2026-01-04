@@ -50,7 +50,17 @@ async function init() {
         // Set last update time
         const lastUpdateEl = document.getElementById('lastUpdate');
         if (lastUpdateEl) {
-            lastUpdateEl.textContent = new Date().toLocaleString();
+            const now = new Date();
+            const dateOptions = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric'
+            };
+            const timeOptions = { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            };
+            lastUpdateEl.textContent = now.toLocaleDateString('en-US', dateOptions) + ' at ' + now.toLocaleTimeString('en-US', timeOptions);
         }
         
         // Setup event listeners
