@@ -214,11 +214,13 @@ function loadTab(tabName) {
     
     currentData = allData[tabName] || [];
     
-    // Filter out "Total" rows
+    // Filter out "Total" rows and header rows
     currentData = currentData.filter(row => {
         const firstValue = Object.values(row)[0];
         return firstValue !== 'Total' && 
                firstValue !== 'TOTAL' && 
+               firstValue !== 'Provider' &&
+               firstValue !== 'Provider Name' &&
                !String(firstValue).toLowerCase().includes('grand total');
     });
     
@@ -1150,16 +1152,31 @@ function initGustoHoursCharts(data, columns) {
 }
 
 function initDoxy20MinCharts(data, columns) {
-    const percentCol = columns.find(col => 
-        col.toLowerCase().includes('percent') || col.toLowerCase().includes('%')
-    );
+    // Find percentage column - check multiple possible names
+    const percentCol = columns.find(col => {
+        const colLower = String(col).toLowerCase();
+        return colLower.includes('percent') || 
+               colLower.includes('%') ||
+               colLower.includes('over 20');
+    });
+    
+    console.log('Doxy 20min chart - percentCol:', percentCol);
+    console.log('Doxy 20min chart - data rows:', data.length);
     
     if (percentCol && document.getElementById('durationChart')) {
-        const providerCol = columns.find(col => col.toLowerCase().includes('provider') || col === 'Unnamed: 0');
+        const providerCol = columns.find(col => {
+            const colLower = String(col).toLowerCase();
+            return colLower.includes('provider') || col === 'Unnamed: 0';
+        });
+        
+        console.log('Doxy 20min chart - providerCol:', providerCol);
+        
         const validData = data
             .filter(row => {
                 const val = parseFloat(row[percentCol]);
-                return !isNaN(val) && val > 0 && row[providerCol];
+                const provider = row[providerCol];
+                const isValid = !isNaN(val) && val > 0 && provider && provider !== 'Provider';
+                return isValid;
             })
             .map(row => ({
                 name: row[providerCol],
@@ -1167,6 +1184,13 @@ function initDoxy20MinCharts(data, columns) {
             }))
             .sort((a, b) => b.value - a.value)
             .slice(0, 10);
+        
+        console.log('Doxy 20min chart - validData length:', validData.length);
+        
+        if (validData.length === 0) {
+            console.warn('No valid data for Doxy 20min chart');
+            return;
+        }
         
         const ctx = document.getElementById('durationChart').getContext('2d');
         const chart = new Chart(ctx, {
