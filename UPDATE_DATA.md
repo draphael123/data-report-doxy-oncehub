@@ -3,7 +3,7 @@
 ## Simple 3-Step Process
 
 ### 1️⃣ Update Your Excel File
-Edit `Oncehub_Doxy Report (in use) (3).xlsx` with your new data
+Edit `Spreadsheets\Data Sources 1-4\Oncehub_Doxy Report (in use) (5).xlsx` with your new data
 
 ### 2️⃣ Convert to JSON
 ```bash
@@ -12,7 +12,7 @@ python read_excel.py
 
 ### 3️⃣ Deploy
 ```bash
-git add data.json "Oncehub_Doxy Report (in use) (3).xlsx"
+git add data.json "Spreadsheets/Data Sources 1-4/Oncehub_Doxy Report (in use) (5).xlsx"
 git commit -m "Update data - $(date +%F)"
 git push
 ```
@@ -25,7 +25,7 @@ Wait 30 seconds, then visit: https://doxy-oncehub-reports.vercel.app
 
 ### Step 1: Edit Your Excel File
 
-1. Open `Oncehub_Doxy Report (in use) (3).xlsx`
+1. Open `Spreadsheets\Data Sources 1-4\Oncehub_Doxy Report (in use) (5).xlsx`
 2. Update any data in any of the 9 sheets:
    - Doxy Visits
    - Oncehub Report - Visit Type Dat
@@ -58,7 +58,7 @@ Data exported to data.json
 
 ```bash
 # Add files
-git add data.json "Oncehub_Doxy Report (in use) (3).xlsx"
+git add data.json "Spreadsheets/Data Sources 1-4/Oncehub_Doxy Report (in use) (5).xlsx"
 
 # Commit with message
 git commit -m "Update dashboard data for week of [DATE]"
@@ -89,7 +89,7 @@ python read_excel.py
 
 echo.
 echo Committing changes...
-git add data.json "Oncehub_Doxy Report (in use) (3).xlsx"
+git add data.json "Spreadsheets/Data Sources 1-4/Oncehub_Doxy Report (in use) (5).xlsx"
 git commit -m "Update data - %date%"
 
 echo.
@@ -115,7 +115,7 @@ python read_excel.py
 
 echo ""
 echo "Committing changes..."
-git add data.json "Oncehub_Doxy Report (in use) (3).xlsx"
+git add data.json "Spreadsheets/Data Sources 1-4/Oncehub_Doxy Report (in use) (5).xlsx"
 git commit -m "Update data - $(date +%Y-%m-%d)"
 
 echo ""
@@ -192,7 +192,7 @@ git push
 |--------|---------|
 | Convert Excel | `python read_excel.py` |
 | Check status | `git status` |
-| Add files | `git add data.json "Oncehub_Doxy Report (in use) (3).xlsx"` |
+| Add files | `git add data.json "Spreadsheets/Data Sources 1-4/Oncehub_Doxy Report (in use) (5).xlsx"` |
 | Commit | `git commit -m "Update data"` |
 | Deploy | `git push` |
 | View site | https://doxy-oncehub-reports.vercel.app |
@@ -208,6 +208,6 @@ git push
 
 ---
 
-**Last Updated:** January 3, 2026  
-**Version:** 2.0.3
+**Last Updated:** January 4, 2026  
+**Version:** 2.1.0 - Updated to use Oncehub_Doxy Report (in use) (5)
 
