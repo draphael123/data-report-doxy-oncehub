@@ -1236,12 +1236,20 @@ function initDoxy20MinCharts(data, columns) {
 
 function initProgramCharts(data, columns) {
     // Find all program columns (there might be multiple in pivot tables)
-    const programCols = columns.filter(col => {
+    let programCols = columns.filter(col => {
         const colLower = String(col).toLowerCase();
         return colLower.includes('program');
     });
     
+    // If no explicit "program" columns, check week columns (for Program Grouped tab)
+    if (programCols.length === 0) {
+        programCols = columns.filter(col => {
+            return /week of \d+\/\d+/i.test(String(col)) || col.match(/\d+\/\d+/);
+        });
+    }
+    
     console.log('Program chart - programCols:', programCols);
+    console.log('Program chart - all columns:', columns);
     console.log('Program chart - data rows:', data.length);
     
     if (programCols.length > 0 && document.getElementById('programDistChart')) {
@@ -1258,15 +1266,22 @@ function initProgramCharts(data, columns) {
         
         console.log('Valid data rows:', validData.length);
         
+        // Check if the data contains program names (text values like HRT, TRT, GLP)
+        // or numeric values (in which case this might not be the right column)
+        const sampleValues = validData.slice(0, 10).map(row => row[programCols[0]]);
+        console.log('Sample values from first program column:', sampleValues);
+        
         // Count programs from all program columns
         validData.forEach(row => {
             programCols.forEach(programCol => {
                 const program = row[programCol];
-                // Skip header values and null/undefined
+                // Skip header values, null/undefined, and numeric values
                 if (program && 
                     program !== 'Program' && 
                     program !== 'program' &&
-                    String(program).trim() !== '') {
+                    typeof program === 'string' &&
+                    String(program).trim() !== '' &&
+                    isNaN(program)) {  // Skip numeric values
                     programCounts[program] = (programCounts[program] || 0) + 1;
                 }
             });
