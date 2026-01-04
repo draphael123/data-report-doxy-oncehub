@@ -64,6 +64,11 @@ function loadTab(tabName) {
     filteredData = [...currentData];
     sortColumn = null;
     sortDirection = 'asc';
+    
+    // Generate and render analytics
+    renderAnalytics(tabName, currentData);
+    
+    // Render table
     renderTable(filteredData);
 }
 
@@ -119,6 +124,422 @@ function sortData(column) {
     });
     
     renderTable(filteredData);
+}
+
+// Generate and render analytics
+function renderAnalytics(tabName, data) {
+    const analyticsSection = document.getElementById('analyticsSection');
+    
+    if (!data || data.length === 0) {
+        analyticsSection.classList.remove('visible');
+        return;
+    }
+    
+    // Get columns
+    const columns = Object.keys(data[0] || {});
+    
+    // Identify week columns and numeric columns
+    const weekColumns = columns.filter(col => 
+        col.includes('Week') || 
+        col.match(/\d+\/\d+/) || 
+        col.includes('11/30') || 
+        col.includes('12/6') || 
+        col.includes('12/13') || 
+        col.includes('12/14') || 
+        col.includes('12/21') ||
+        col.includes('12/28')
+    );
+    
+    let analyticsHTML = '';
+    
+    // Generate analytics based on tab type
+    if (tabName === 'Doxy Visits') {
+        analyticsHTML = generateDoxyVisitsAnalytics(data, columns);
+    } else if (tabName.includes('Oncehub') || tabName.includes('OnceHub')) {
+        analyticsHTML = generateOncehubAnalytics(data, columns, tabName);
+    } else if (tabName === 'Gusto Hours ') {
+        analyticsHTML = generateGustoHoursAnalytics(data, columns);
+    } else if (tabName === 'Doxy - Over 20 minutes') {
+        analyticsHTML = generateDoxy20MinAnalytics(data, columns);
+    } else if (tabName.includes('Program')) {
+        analyticsHTML = generateProgramAnalytics(data, columns, tabName);
+    } else {
+        analyticsHTML = generateGenericAnalytics(data, columns, weekColumns);
+    }
+    
+    if (analyticsHTML) {
+        analyticsSection.innerHTML = analyticsHTML;
+        analyticsSection.classList.add('visible');
+    } else {
+        analyticsSection.classList.remove('visible');
+    }
+}
+
+// Analytics for Doxy Visits
+function generateDoxyVisitsAnalytics(data, columns) {
+    const weekCols = columns.filter(col => col.match(/\d+\/\d+/) || col.includes('-'));
+    
+    if (weekCols.length < 2) return '';
+    
+    // Calculate totals for each week
+    const weekTotals = {};
+    weekCols.forEach(col => {
+        weekTotals[col] = data.reduce((sum, row) => {
+            const val = parseFloat(row[col]);
+            return sum + (isNaN(val) ? 0 : val);
+        }, 0);
+    });
+    
+    // Get latest two weeks for comparison
+    const weeks = Object.keys(weekTotals);
+    const latestWeek = weeks[weeks.length - 1];
+    const previousWeek = weeks[weeks.length - 2];
+    
+    const latestTotal = weekTotals[latestWeek];
+    const previousTotal = weekTotals[previousWeek];
+    const change = latestTotal - previousTotal;
+    const percentChange = previousTotal !== 0 ? ((change / previousTotal) * 100).toFixed(1) : 0;
+    
+    // Find top performers
+    const providerCol = columns.find(col => col.toLowerCase().includes('provider'));
+    const topPerformers = data
+        .filter(row => row[providerCol] && row[latestWeek])
+        .map(row => ({
+            name: row[providerCol],
+            value: parseFloat(row[latestWeek]) || 0
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+    
+    // Calculate average
+    const avgVisits = (latestTotal / data.length).toFixed(1);
+    
+    return `
+        <div class="analytics-summary">
+            <h3>📊 Doxy Visits Analysis</h3>
+            <p>Week-over-week performance metrics for provider visits</p>
+        </div>
+        
+        <div class="analytics-grid">
+            <div class="analytics-card ${change >= 0 ? 'positive' : 'negative'}">
+                <h3>Total Visits (Latest Week)</h3>
+                <div class="analytics-value">${latestTotal.toLocaleString()}</div>
+                <div class="analytics-change ${change >= 0 ? 'positive' : 'negative'}">
+                    <span class="arrow">${change >= 0 ? '↑' : '↓'}</span>
+                    <span>${Math.abs(change).toLocaleString()} visits (${Math.abs(percentChange)}%)</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3>Previous Week Total</h3>
+                <div class="analytics-value">${previousTotal.toLocaleString()}</div>
+                <div class="analytics-change neutral">
+                    <span>${cleanColumnName(previousWeek)}</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3>Average Visits per Provider</h3>
+                <div class="analytics-value">${avgVisits}</div>
+                <div class="analytics-change neutral">
+                    <span>Based on ${data.length} providers</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="top-performers">
+            <h3>🏆 Top 5 Performers (${cleanColumnName(latestWeek)})</h3>
+            ${topPerformers.map((performer, idx) => `
+                <div class="performer-item">
+                    <span class="performer-rank">#${idx + 1}</span>
+                    <span class="performer-name">${performer.name}</span>
+                    <span class="performer-value">${performer.value.toLocaleString()}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// Analytics for OnceHub data
+function generateOncehubAnalytics(data, columns, tabName) {
+    const weekCols = columns.filter(col => 
+        col.includes('Week of') || col.match(/\d+\/\d+/)
+    );
+    
+    // Find numeric columns
+    const numericCols = columns.filter(col => {
+        return data.some(row => {
+            const val = row[col];
+            return !isNaN(parseFloat(val)) && isFinite(val);
+        });
+    });
+    
+    if (numericCols.length === 0) return '';
+    
+    // Calculate total visits/numbers
+    const latestNumericCol = numericCols[numericCols.length - 1];
+    const total = data.reduce((sum, row) => {
+        const val = parseFloat(row[latestNumericCol]);
+        return sum + (isNaN(val) ? 0 : val);
+    }, 0);
+    
+    // Count unique providers
+    const providerCol = columns.find(col => 
+        col.toLowerCase().includes('provider') || col === 'Unnamed: 0'
+    );
+    const uniqueProviders = new Set(
+        data.filter(row => row[providerCol]).map(row => row[providerCol])
+    ).size;
+    
+    const avgPerProvider = (total / Math.max(uniqueProviders, 1)).toFixed(1);
+    
+    return `
+        <div class="analytics-summary">
+            <h3>📊 ${tabName} Analysis</h3>
+            <p>Overview of OnceHub scheduling and visit metrics</p>
+        </div>
+        
+        <div class="analytics-grid">
+            <div class="analytics-card positive">
+                <h3>Total Count</h3>
+                <div class="analytics-value">${total.toLocaleString()}</div>
+                <div class="analytics-change neutral">
+                    <span>Across all records</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3>Unique Providers</h3>
+                <div class="analytics-value">${uniqueProviders}</div>
+                <div class="analytics-change neutral">
+                    <span>Active providers tracked</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3>Average per Provider</h3>
+                <div class="analytics-value">${avgPerProvider}</div>
+                <div class="analytics-change neutral">
+                    <span>Mean distribution</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Analytics for Gusto Hours
+function generateGustoHoursAnalytics(data, columns) {
+    const weekCols = columns.filter(col => col.match(/\d+\/\d+/));
+    
+    if (weekCols.length === 0) return '';
+    
+    const latestWeek = weekCols[weekCols.length - 1];
+    const totalHours = data.reduce((sum, row) => {
+        const val = parseFloat(row[latestWeek]);
+        return sum + (isNaN(val) ? 0 : val);
+    }, 0);
+    
+    const avgHours = (totalHours / data.length).toFixed(1);
+    
+    // Find top by hours
+    const providerCol = columns[0];
+    const topByHours = data
+        .filter(row => row[providerCol] && row[latestWeek])
+        .map(row => ({
+            name: row[providerCol],
+            value: parseFloat(row[latestWeek]) || 0
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+    
+    return `
+        <div class="analytics-summary">
+            <h3>⏰ Gusto Hours Analysis</h3>
+            <p>Provider hours tracking and workload distribution</p>
+        </div>
+        
+        <div class="analytics-grid">
+            <div class="analytics-card positive">
+                <h3>Total Hours (${cleanColumnName(latestWeek)})</h3>
+                <div class="analytics-value">${totalHours.toFixed(1)}</div>
+                <div class="analytics-change neutral">
+                    <span>Combined team hours</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3>Average Hours per Provider</h3>
+                <div class="analytics-value">${avgHours}</div>
+                <div class="analytics-change neutral">
+                    <span>${data.length} providers tracked</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="top-performers">
+            <h3>⏰ Hours Worked - Top 5</h3>
+            ${topByHours.map((performer, idx) => `
+                <div class="performer-item">
+                    <span class="performer-rank">#${idx + 1}</span>
+                    <span class="performer-name">${performer.name}</span>
+                    <span class="performer-value">${performer.value} hrs</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// Analytics for Doxy Over 20 Minutes
+function generateDoxy20MinAnalytics(data, columns) {
+    const percentCol = columns.find(col => 
+        col.toLowerCase().includes('percent') || col.toLowerCase().includes('%')
+    );
+    
+    if (!percentCol) return '';
+    
+    // Calculate average percentage
+    const validData = data.filter(row => {
+        const val = parseFloat(row[percentCol]);
+        return !isNaN(val) && val > 0;
+    });
+    
+    const avgPercent = validData.reduce((sum, row) => {
+        return sum + parseFloat(row[percentCol] || 0);
+    }, 0) / validData.length;
+    
+    // Find highest and lowest
+    const sorted = [...validData].sort((a, b) => 
+        parseFloat(b[percentCol]) - parseFloat(a[percentCol])
+    );
+    
+    const providerCol = columns.find(col => col.toLowerCase().includes('provider') || col === 'Unnamed: 0');
+    const highest = sorted[0];
+    const lowest = sorted[sorted.length - 1];
+    
+    return `
+        <div class="analytics-summary">
+            <h3>⏱️ Visit Duration Analysis</h3>
+            <p>Percentage of visits exceeding 20 minutes - quality time indicator</p>
+        </div>
+        
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <h3>Average % Over 20 Min</h3>
+                <div class="analytics-value">${avgPercent.toFixed(1)}%</div>
+                <div class="analytics-change neutral">
+                    <span>Across ${validData.length} providers</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card positive">
+                <h3>Highest Rate</h3>
+                <div class="analytics-value">${parseFloat(highest[percentCol]).toFixed(1)}%</div>
+                <div class="analytics-change neutral">
+                    <span>${highest[providerCol]}</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3>Lowest Rate</h3>
+                <div class="analytics-value">${parseFloat(lowest[percentCol]).toFixed(1)}%</div>
+                <div class="analytics-change neutral">
+                    <span>${lowest[providerCol]}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Analytics for Program data
+function generateProgramAnalytics(data, columns, tabName) {
+    // Find program and visit type columns
+    const programCol = columns.find(col => col.toLowerCase().includes('program'));
+    const visitCol = columns.find(col => col.toLowerCase().includes('visit'));
+    
+    if (!programCol && !visitCol) return '';
+    
+    // Count by program
+    const programCounts = {};
+    const visitCounts = {};
+    
+    data.forEach(row => {
+        if (row[programCol]) {
+            programCounts[row[programCol]] = (programCounts[row[programCol]] || 0) + 1;
+        }
+        if (row[visitCol]) {
+            visitCounts[row[visitCol]] = (visitCounts[row[visitCol]] || 0) + 1;
+        }
+    });
+    
+    const totalRecords = data.length;
+    const uniquePrograms = Object.keys(programCounts).length;
+    
+    return `
+        <div class="analytics-summary">
+            <h3>📋 ${tabName} Analysis</h3>
+            <p>Program distribution and visit type breakdown</p>
+        </div>
+        
+        <div class="analytics-grid">
+            <div class="analytics-card positive">
+                <h3>Total Records</h3>
+                <div class="analytics-value">${totalRecords}</div>
+                <div class="analytics-change neutral">
+                    <span>All entries tracked</span>
+                </div>
+            </div>
+            
+            ${uniquePrograms > 0 ? `
+            <div class="analytics-card">
+                <h3>Programs Tracked</h3>
+                <div class="analytics-value">${uniquePrograms}</div>
+                <div class="analytics-change neutral">
+                    <span>${Object.keys(programCounts).join(', ')}</span>
+                </div>
+            </div>
+            ` : ''}
+            
+            ${Object.keys(visitCounts).length > 0 ? `
+            <div class="analytics-card">
+                <h3>Visit Types</h3>
+                <div class="analytics-value">${Object.keys(visitCounts).length}</div>
+                <div class="analytics-change neutral">
+                    <span>${Object.keys(visitCounts).join(', ')}</span>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// Generic analytics fallback
+function generateGenericAnalytics(data, columns, weekColumns) {
+    if (weekColumns.length === 0) return '';
+    
+    return `
+        <div class="analytics-summary">
+            <h3>📊 Data Overview</h3>
+            <p>Summary statistics for current view</p>
+        </div>
+        
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <h3>Total Records</h3>
+                <div class="analytics-value">${data.length}</div>
+                <div class="analytics-change neutral">
+                    <span>${columns.length} columns tracked</span>
+                </div>
+            </div>
+            
+            <div class="analytics-card">
+                <h3>Time Periods</h3>
+                <div class="analytics-value">${weekColumns.length}</div>
+                <div class="analytics-change neutral">
+                    <span>Weeks of data available</span>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // Render table
