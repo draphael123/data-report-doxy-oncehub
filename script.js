@@ -1235,15 +1235,49 @@ function initDoxy20MinCharts(data, columns) {
 }
 
 function initProgramCharts(data, columns) {
-    const programCol = columns.find(col => col.toLowerCase().includes('program'));
+    // Find all program columns (there might be multiple in pivot tables)
+    const programCols = columns.filter(col => {
+        const colLower = String(col).toLowerCase();
+        return colLower.includes('program');
+    });
     
-    if (programCol && document.getElementById('programDistChart')) {
+    console.log('Program chart - programCols:', programCols);
+    console.log('Program chart - data rows:', data.length);
+    
+    if (programCols.length > 0 && document.getElementById('programDistChart')) {
         const programCounts = {};
-        data.forEach(row => {
-            if (row[programCol]) {
-                programCounts[row[programCol]] = (programCounts[row[programCol]] || 0) + 1;
-            }
+        
+        // Filter out header rows first
+        const validData = data.filter(row => {
+            const firstCol = row[columns[0]];
+            return firstCol && 
+                   firstCol !== 'Provider' && 
+                   firstCol !== 'provider' &&
+                   !String(firstCol).toLowerCase().includes('total');
         });
+        
+        console.log('Valid data rows:', validData.length);
+        
+        // Count programs from all program columns
+        validData.forEach(row => {
+            programCols.forEach(programCol => {
+                const program = row[programCol];
+                // Skip header values and null/undefined
+                if (program && 
+                    program !== 'Program' && 
+                    program !== 'program' &&
+                    String(program).trim() !== '') {
+                    programCounts[program] = (programCounts[program] || 0) + 1;
+                }
+            });
+        });
+        
+        console.log('Program counts:', programCounts);
+        
+        if (Object.keys(programCounts).length === 0) {
+            console.warn('No valid program data found');
+            return;
+        }
         
         const ctx = document.getElementById('programDistChart').getContext('2d');
         const chart = new Chart(ctx, {
