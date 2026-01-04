@@ -88,6 +88,48 @@
             </button>
         </div>
 
+        <!-- Monthly Summary -->
+        <div class="monthly-summary" id="monthlySummary" style="display: none;">
+            <div class="monthly-header">
+                <h2>📅 Monthly Overview</h2>
+                <div class="month-period" id="monthPeriod"></div>
+            </div>
+            <div class="monthly-stats">
+                <div class="monthly-stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Total This Month</div>
+                        <div class="stat-value" id="monthlyTotal">-</div>
+                        <div class="stat-detail" id="monthlyWeeks"></div>
+                    </div>
+                </div>
+                <div class="monthly-stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Weekly Average</div>
+                        <div class="stat-value" id="weeklyAverage">-</div>
+                        <div class="stat-detail" id="weeklyTrend"></div>
+                    </div>
+                </div>
+                <div class="monthly-stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Avg per Provider</div>
+                        <div class="stat-value" id="monthlyProviderAvg">-</div>
+                        <div class="stat-detail" id="providerCount"></div>
+                    </div>
+                </div>
+                <div class="monthly-stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Monthly Projection</div>
+                        <div class="stat-value" id="monthlyProjection">-</div>
+                        <div class="stat-detail" id="projectionDetail"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Summary Cards -->
         <div class="summary-cards" id="summaryCards">
             <div class="summary-card">

@@ -268,9 +268,13 @@ function loadTab(tabName) {
     // Generate and render charts
     renderCharts(tabName, currentData);
     
+    console.log('Updating monthly summary...');
+    // Update monthly summary first
+    const columns = currentData.length > 0 ? Object.keys(currentData[0]) : [];
+    updateMonthlySummary(currentData, columns, tabName);
+    
     console.log('Updating summary cards...');
     // Update summary cards
-    const columns = currentData.length > 0 ? Object.keys(currentData[0]) : [];
     updateSummaryCards(currentData, columns, tabName);
     
     // Reset quick filter to 'all'
@@ -2026,6 +2030,92 @@ function initProgramCharts(data, columns) {
         });
         currentCharts.push(chart);
     }
+}
+
+// Monthly Summary Update
+function updateMonthlySummary(data, columns, tabName) {
+    console.log('Calculating monthly summary for:', tabName);
+    
+    // Filter out header and total rows
+    const validData = data.filter(row => {
+        const firstCol = row[columns[0]];
+        return firstCol && 
+               firstCol !== 'Provider' && 
+               firstCol !== 'provider' &&
+               !String(firstCol).toLowerCase().includes('total') &&
+               !String(firstCol).toLowerCase().includes('grand total');
+    });
+    
+    // Get all week columns
+    const weekCols = columns.filter(col => {
+        const colStr = String(col);
+        return colStr.match(/week\s+of\s+\d+\/\d+/i) || (colStr.match(/\d+\/\d+/) && !colStr.toLowerCase().includes('unnamed'));
+    });
+    
+    console.log('Week columns for monthly calc:', weekCols);
+    
+    if (weekCols.length === 0) {
+        document.getElementById('monthlySummary').style.display = 'none';
+        return;
+    }
+    
+    // Calculate totals for each week
+    const weeklyTotals = weekCols.map(col => {
+        return validData.reduce((sum, row) => {
+            const val = parseFloat(row[col]);
+            return sum + (isNaN(val) ? 0 : val);
+        }, 0);
+    });
+    
+    // Monthly calculations
+    const monthlyTotal = weeklyTotals.reduce((sum, val) => sum + val, 0);
+    const weeklyAverage = weekCols.length > 0 ? (monthlyTotal / weekCols.length) : 0;
+    const activeProviders = validData.length;
+    const monthlyProviderAvg = activeProviders > 0 ? (monthlyTotal / activeProviders) : 0;
+    
+    // Calculate trend (comparing first half vs second half of weeks)
+    const midpoint = Math.floor(weeklyTotals.length / 2);
+    const firstHalfAvg = weeklyTotals.slice(0, midpoint).reduce((a, b) => a + b, 0) / midpoint;
+    const secondHalfAvg = weeklyTotals.slice(midpoint).reduce((a, b) => a + b, 0) / (weeklyTotals.length - midpoint);
+    const trendPercent = firstHalfAvg > 0 ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg * 100) : 0;
+    
+    // Project end of month (assuming 4 weeks per month)
+    const weeksInMonth = 4;
+    const monthlyProjection = weeklyAverage * weeksInMonth;
+    const weeksRemaining = weeksInMonth - weekCols.length;
+    
+    // Extract month from week columns
+    const firstWeek = weekCols[0];
+    const monthMatch = String(firstWeek).match(/(\d+)\/(\d+)/);
+    let monthName = 'This Month';
+    if (monthMatch) {
+        const month = parseInt(monthMatch[1]);
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        monthName = monthNames[month - 1] || 'This Month';
+    }
+    
+    // Update display
+    document.getElementById('monthPeriod').textContent = `${monthName} • ${weekCols.length} week${weekCols.length > 1 ? 's' : ''} of data`;
+    document.getElementById('monthlyTotal').textContent = monthlyTotal.toLocaleString();
+    document.getElementById('monthlyWeeks').textContent = `From ${weekCols.length} week${weekCols.length > 1 ? 's' : ''}`;
+    
+    document.getElementById('weeklyAverage').textContent = weeklyAverage.toFixed(1);
+    const trendArrow = trendPercent > 0 ? '↗' : trendPercent < 0 ? '↘' : '→';
+    const trendClass = trendPercent > 0 ? 'positive' : trendPercent < 0 ? 'negative' : 'neutral';
+    document.getElementById('weeklyTrend').innerHTML = `<span class="${trendClass}">${trendArrow} ${Math.abs(trendPercent).toFixed(1)}% trend</span>`;
+    
+    document.getElementById('monthlyProviderAvg').textContent = monthlyProviderAvg.toFixed(1);
+    document.getElementById('providerCount').textContent = `${activeProviders} active provider${activeProviders > 1 ? 's' : ''}`;
+    
+    document.getElementById('monthlyProjection').textContent = monthlyProjection.toFixed(0);
+    if (weeksRemaining > 0) {
+        document.getElementById('projectionDetail').textContent = `Based on ${weekCols.length} weeks, ${weeksRemaining} to go`;
+    } else {
+        document.getElementById('projectionDetail').textContent = `Full month captured`;
+    }
+    
+    // Show the monthly summary
+    document.getElementById('monthlySummary').style.display = 'block';
 }
 
 // Summary Cards Update

@@ -1378,6 +1378,172 @@ tfoot.sticky-summary th:first-child {
     margin-bottom: 20px;
 }
 
+/* Monthly Summary */
+.monthly-summary {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 1));
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+    border: 3px solid rgba(99, 102, 241, 0.3);
+    border-left: 8px solid var(--primary-color);
+    animation: slideInDown 0.5s ease;
+}
+
+.monthly-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+}
+
+.monthly-header h2 {
+    font-size: 1.8rem;
+    color: var(--primary-color);
+    margin: 0;
+    font-weight: 700;
+}
+
+.month-period {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 8px 16px;
+    border-radius: 8px;
+}
+
+.monthly-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.monthly-stat-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 1));
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.monthly-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-pink));
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.monthly-stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.monthly-stat-card:hover::before {
+    transform: scaleX(1);
+}
+
+.stat-icon {
+    font-size: 48px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-detail {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.stat-detail .positive {
+    color: var(--secondary-color);
+    font-weight: 600;
+}
+
+.stat-detail .negative {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.stat-detail .neutral {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Dark Mode - Monthly Summary */
+.dark-mode .monthly-summary {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 1));
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.dark-mode .monthly-header {
+    border-bottom-color: rgba(99, 102, 241, 0.3);
+}
+
+.dark-mode .monthly-header h2 {
+    color: #818cf8;
+}
+
+.dark-mode .month-period {
+    background: rgba(99, 102, 241, 0.2);
+    color: #f1f5f9;
+}
+
+.dark-mode .monthly-stat-card {
+    background: linear-gradient(135deg, rgba(51, 65, 85, 0.8), rgba(30, 41, 59, 0.9));
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .stat-value {
+    color: #f1f5f9;
+}
+
 /* Summary Cards */
 .summary-cards {
     display: grid;
@@ -1579,6 +1745,28 @@ footer {
     
     header h1 {
         font-size: 1.75rem;
+    }
+    
+    .monthly-summary {
+        padding: 20px;
+    }
+    
+    .monthly-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .monthly-header h2 {
+        font-size: 1.4rem;
+    }
+    
+    .monthly-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
     }
     
     .analytics-grid {
